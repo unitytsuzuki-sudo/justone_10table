@@ -229,15 +229,17 @@
     <div class="card pink">
       <div class="card-label">💬 ヒント一覧</div>
       <div class="hints-list" id="answer-hints"></div>
+      <button class="btn btn-ghost" onclick="manualRefreshAnswer()" style="margin-top:8px; font-size:12px;">🔄 ヒントを最新化</button>
     </div>
+    <div id="answer-attempts-history" style="margin-bottom:14px;"></div>
     <div class="card yellow">
       <div class="card-title">あなたの答え（残り <span id="attempts-left">3</span> 回）</div>
       <div class="field">
         <input type="text" id="answer-input" placeholder="お題を答える" autocomplete="off">
       </div>
       <div class="btn-row">
-        <button class="btn btn-primary" onclick="submitAnswer()">回答 ✊</button>
-        <button class="btn btn-secondary" onclick="giveUp()">降参 🏳️</button>
+        <button class="btn btn-gray" onclick="giveUp()">降参 🏳️</button>
+        <button class="btn btn-primary" onclick="submitAnswer()">回答する ✊</button>
       </div>
     </div>
     <div id="answer-switcher-card" class="card pink" style="display:none;">
@@ -261,6 +263,9 @@
     <div class="card pink">
       <div class="card-label">🎯 回答状況</div>
       <div class="hints-list" id="watch-attempts"></div>
+      <button class="btn btn-accent" onclick="forceCorrect()" id="btn-force-correct" style="margin-top:12px; display:none;">
+        ✨ それ実は正解！
+      </button>
     </div>
     <div id="watch-switcher-card" class="card pink" style="display:none;">
       <div id="watch-switcher"></div>

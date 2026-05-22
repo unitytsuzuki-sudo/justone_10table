@@ -673,9 +673,12 @@ function renderHintScreen(tableData) {
   const input = document.getElementById('hint-input');
   const btn = document.getElementById('btn-submit-hint');
 
-  // フォーカス保持
-  const wasFocused = document.activeElement === input;
-  const cursorPos = input ? input.selectionStart : null;
+  // 入力中は再描画をスキップ（フォーカス維持・誤クリア対策）
+  if (document.activeElement === input && input.value.length > 0 && !myHint) {
+    // ヒント状況リストだけ更新
+    renderHintStatusOnly(tableData);
+    return;
+  }
 
   // 入力欄をクリアするケース：
   // 1. プレイヤー切替直後
@@ -697,14 +700,11 @@ function renderHintScreen(tableData) {
   }
   state.justSwitched = false;
 
-  // フォーカスを復元（入力中の場合）
-  if (wasFocused && !input.disabled) {
-    input.focus();
-    if (cursorPos !== null) {
-      try { input.setSelectionRange(cursorPos, cursorPos); } catch(e) {}
-    }
-  }
+  renderHintStatusOnly(tableData);
+}
 
+function renderHintStatusOnly(tableData) {
+  const activeId = getActiveId();
   const statusList = document.getElementById('hint-status');
   statusList.innerHTML = '';
   const nonAnswerers = tableData.players.filter(p => p.id !== tableData.answererId);
@@ -752,6 +752,8 @@ async function submitHint() {
       }
       return t;
     });
+    // ヒント送信後はポーリング再開
+    startPolling();
   } catch (e) {
     alert('送信失敗: ' + e.message);
   }
@@ -826,12 +828,6 @@ async function revealHints() {
 // ---------- 回答 ----------
 function renderAnswerScreen(tableData) {
   const list = document.getElementById('answer-hints');
-  const ansInput = document.getElementById('answer-input');
-
-  // フォーカスを保持するため、現在の値とフォーカス状態を保存
-  const wasFocused = document.activeElement === ansInput;
-  const cursorPos = ansInput ? ansInput.selectionStart : null;
-
   list.innerHTML = '';
   Object.entries(tableData.hints).forEach(([pid, h]) => {
     if (h.dup) return;
@@ -846,17 +842,28 @@ function renderAnswerScreen(tableData) {
   });
   document.getElementById('attempts-left').textContent = 3 - (tableData.attempts ? tableData.attempts.length : 0);
 
-  // 切替直後は入力欄クリア、それ以外は何もしない（入力中の値を守る）
-  if (state.justSwitched && ansInput) {
-    ansInput.value = '';
+  // 回答履歴を表示（〇✕付き）
+  const attemptsArea = document.getElementById('answer-attempts-history');
+  if (attemptsArea) {
+    const attempts = tableData.attempts || [];
+    if (attempts.length === 0) {
+      attemptsArea.innerHTML = '';
+    } else {
+      let html = '<div class="card-label" style="margin-bottom:8px;">📜 これまでの回答</div><div class="hints-list">';
+      attempts.forEach((a, i) => {
+        const mark = a.correct ? '✅' : '❌';
+        const label = a.correct ? '正解！' : 'ハズレ';
+        html += `<div class="hint-item ${a.correct ? '' : 'duplicate'}"><span class="hint-word">${i + 1}回目: ${escapeHtml(a.word)}</span><span class="hint-name">${mark} ${label}</span></div>`;
+      });
+      html += '</div>';
+      attemptsArea.innerHTML = html;
+    }
   }
 
-  // フォーカスを復元
-  if (wasFocused && ansInput) {
-    ansInput.focus();
-    if (cursorPos !== null) {
-      try { ansInput.setSelectionRange(cursorPos, cursorPos); } catch(e) {}
-    }
+  // 切替直後は入力欄クリア
+  if (state.justSwitched) {
+    const ansInput = document.getElementById('answer-input');
+    if (ansInput) ansInput.value = '';
   }
 }
 
@@ -877,6 +884,8 @@ async function submitAnswer() {
       return t;
     });
     document.getElementById('answer-input').value = '';
+    // 回答後は必ずポーリング再開
+    startPolling();
   } catch (e) {
     alert('回答送信失敗: ' + e.message);
   }
@@ -890,7 +899,30 @@ async function giveUp() {
       t.result = 'lose';
       return t;
     });
+    startPolling();
   } catch (e) { /* 無視 */ }
+}
+
+// 強制正解（ヒント側が「それ実は正解！」と認める）
+async function forceCorrect() {
+  if (!confirm('回答者の最新回答を「正解」として認めますか？\n\n例：表記ゆれ・同義語などで惜しい場合に使ってください。')) return;
+  try {
+    await updateTable(t => {
+      const attempts = t.attempts || [];
+      if (attempts.length === 0) {
+        alert('まだ回答がありません');
+        return null;
+      }
+      // 最新の回答を正解にして、ゲーム結果を「勝ち」にする
+      attempts[attempts.length - 1].correct = true;
+      attempts[attempts.length - 1].forced = true;
+      t.phase = 'result';
+      t.result = 'win';
+      return t;
+    });
+  } catch (e) {
+    alert('強制正解失敗: ' + e.message);
+  }
 }
 
 function normalizeAnswer(s) {
@@ -930,6 +962,17 @@ function renderWatchScreen(tableData) {
   });
   if ((tableData.attempts || []).length === 0) {
     attemptsList.innerHTML = '<div class="hint-item waiting"><span>まだ回答していません</span></div>';
+  }
+
+  // 強制正解ボタンの表示制御（誤回答が1つ以上ある場合のみ表示）
+  const forceBtn = document.getElementById('btn-force-correct');
+  if (forceBtn) {
+    const hasIncorrectAttempt = (tableData.attempts || []).some(a => !a.correct);
+    if (hasIncorrectAttempt) {
+      forceBtn.style.display = 'block';
+    } else {
+      forceBtn.style.display = 'none';
+    }
   }
 }
 
@@ -1027,15 +1070,26 @@ function stopPolling() {
   }
 }
 
-// フェーズに応じてポーリング間隔を切替（ロビーは5秒、それ以外は2秒）
-function adjustPollingInterval(phase) {
+// フェーズに応じてポーリング間隔を切替・停止
+// 回答中／ヒント入力中はポーリング完全停止（入力を邪魔しない）
+function adjustPollingInterval(phase, isAnswerer, tableData) {
+  // 回答画面（回答者）：ポーリング停止
+  if (phase === 'answering' && isAnswerer) {
+    stopPolling();
+    return;
+  }
+  // ヒント入力画面（送信前のヒント役）：ポーリング停止
+  if (phase === 'hinting' && !isAnswerer && tableData && !tableData.hints[getActiveId()]) {
+    stopPolling();
+    return;
+  }
+
+  // それ以外はポーリング継続
   const targetInterval = (phase === 'lobby') ? 5000 : 2000;
-  if (state.pollInterval !== targetInterval) {
+  if (state.pollInterval !== targetInterval || !state.pollTimer) {
     state.pollInterval = targetInterval;
-    if (state.pollTimer) {
-      clearInterval(state.pollTimer);
-      state.pollTimer = setInterval(pollOnce, targetInterval);
-    }
+    if (state.pollTimer) clearInterval(state.pollTimer);
+    state.pollTimer = setInterval(pollOnce, targetInterval);
   }
 }
 
@@ -1059,6 +1113,39 @@ async function manualRefresh() {
   }
 }
 
+// 回答画面でのヒント手動更新（入力欄を絶対に触らない）
+async function manualRefreshAnswer() {
+  try {
+    const tableData = await readTable();
+    lastTableDataCache = tableData;
+
+    // ヒント一覧だけ静かに更新（入力欄には触れない）
+    const list = document.getElementById('answer-hints');
+    if (list) {
+      list.innerHTML = '';
+      Object.entries(tableData.hints || {}).forEach(([pid, h]) => {
+        if (h.dup) return;
+        const player = (tableData.players || []).find(p => p.id === pid);
+        const item = document.createElement('div');
+        item.className = 'hint-item';
+        item.innerHTML = `
+          <span class="hint-word">${escapeHtml(h.word)}</span>
+          <span class="hint-name">${escapeHtml(player ? player.name : '?')}</span>
+        `;
+        list.appendChild(item);
+      });
+    }
+    // フェーズが変わってたら（誰かが回答完了など）通常ルートに合流
+    if (tableData.phase !== 'answering') {
+      // ポーリング再開して画面遷移を任せる
+      adjustPollingInterval(tableData.phase, tableData.answererId === getActiveId(), tableData);
+      pollOnce();
+    }
+  } catch (e) {
+    console.error('manualRefreshAnswer error:', e);
+  }
+}
+
 async function pollOnce() {
   try {
     const tableData = await readTable();
@@ -1073,8 +1160,8 @@ function routeByPhase(t) {
   const isAnswerer = t.answererId === getActiveId();
   let target = 'lobby';
 
-  // フェーズに応じてポーリング間隔を調整
-  adjustPollingInterval(t.phase);
+  // フェーズに応じてポーリング間隔を調整（回答中・入力中は停止）
+  adjustPollingInterval(t.phase, isAnswerer, t);
 
   // 全画面で切替UI更新
   renderControlSwitcher(t);

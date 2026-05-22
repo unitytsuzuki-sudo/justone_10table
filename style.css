@@ -189,6 +189,7 @@ label {
 .btn-secondary { background: var(--secondary); color: white; }
 .btn-accent { background: var(--accent); }
 .btn-purple { background: var(--purple); color: white; }
+.btn-gray { background: #bbbbbb; color: white; }
 
 .btn-ghost {
   background: transparent;
