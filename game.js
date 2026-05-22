@@ -396,6 +396,7 @@ async function addGhostPlayer() {
 // 自分が操作するプレイヤーを切替
 function switchControl(pid) {
   state.currentControlledId = pid;
+  state.justSwitched = true;  // 切替直後フラグ
   // 即座に再描画
   pollOnce();
 }
@@ -545,15 +546,20 @@ function renderHintScreen(tableData) {
   const input = document.getElementById('hint-input');
   const btn = document.getElementById('btn-submit-hint');
   if (myHint) {
-    input.value = myHint.word;
+    input.value = '';  // 送信済みなら空欄
     input.disabled = true;
     btn.disabled = true;
     btn.textContent = '送信済み ✅';
   } else {
+    // 切替直後は必ずクリア、それ以外は書きかけを残す
+    if (state.justSwitched) {
+      input.value = '';
+    }
     input.disabled = false;
     btn.disabled = false;
     btn.textContent = '送信 ✨';
   }
+  state.justSwitched = false;  // フラグリセット
 
   const statusList = document.getElementById('hint-status');
   statusList.innerHTML = '';
@@ -596,6 +602,8 @@ async function submitHint() {
       }
       return t;
     });
+    // 送信後は入力欄をクリア
+    document.getElementById('hint-input').value = '';
   } catch (e) {
     alert('送信失敗: ' + e.message);
   }
@@ -661,6 +669,11 @@ function renderAnswerScreen(tableData) {
     list.appendChild(item);
   });
   document.getElementById('attempts-left').textContent = 3 - (tableData.attempts ? tableData.attempts.length : 0);
+  // 切替直後は入力欄クリア
+  if (state.justSwitched) {
+    const ansInput = document.getElementById('answer-input');
+    if (ansInput) ansInput.value = '';
+  }
 }
 
 async function submitAnswer() {
