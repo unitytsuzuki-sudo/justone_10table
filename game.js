@@ -413,6 +413,7 @@ async function leaveTable() {
     });
   } catch (e) { /* 無視 */ }
   stopPolling();
+  stopResetCheckPolling();
   state.tableNum = null;
   state.currentControlledId = null;
   state.hasConfirmedJoin = false;
@@ -663,6 +664,10 @@ async function confirmAnswerer() {
       }
       return t;
     });
+
+    // 書き込み完了後、もう一度最新データを取って全員揃っているか確認
+    // （他の端末と競合した場合の救済措置）
+    await checkAllReadyAndAdvance();
   } catch (e) {
     alert('準備完了失敗: ' + e.message);
     delete state.localReadyState[activeId];
@@ -1126,6 +1131,7 @@ async function resetGame() {
     if (ansInput) ansInput.value = '';
     // 自分もテーブル選択画面に戻る
     stopPolling();
+    stopResetCheckPolling();
     state.tableNum = null;
     state.hasConfirmedJoin = false;
     // フローティングボタンを隠す
@@ -1167,18 +1173,66 @@ function adjustPollingInterval(phase, isAnswerer, tableData) {
     stopPolling();
     return;
   }
-  // 立候補画面：ポーリング停止（ボタン状態を守る）
+  // 立候補画面：通常ポーリングは止めるが、リセット検知だけ別の軽量ポーリングで実行
   if (phase === 'volunteer') {
     stopPolling();
+    startResetCheckPolling();
     return;
   }
 
-  // それ以外はポーリング継続
+  // 通常画面のポーリング
+  stopResetCheckPolling();
   const targetInterval = (phase === 'lobby') ? 5000 : 2000;
   if (state.pollInterval !== targetInterval || !state.pollTimer) {
     state.pollInterval = targetInterval;
     if (state.pollTimer) clearInterval(state.pollTimer);
     state.pollTimer = setInterval(pollOnce, targetInterval);
+  }
+}
+
+// リセット検知だけする軽量ポーリング（立候補画面用）
+function startResetCheckPolling() {
+  if (state.resetCheckTimer) return;
+  state.resetCheckTimer = setInterval(async () => {
+    try {
+      const tableData = await readTable();
+      // 自分がいなくなっている = リセットされた
+      const players = tableData.players || [];
+      const stillInTable = players.find(p => p.id === state.playerId);
+      if (state.tableNum && !stillInTable && state.hasConfirmedJoin) {
+        stopPolling();
+        stopResetCheckPolling();
+        state.tableNum = null;
+        state.currentControlledId = null;
+        state.localVolunteerState = {};
+        state.localReadyState = {};
+        state.lastPhase = null;
+        state.hasConfirmedJoin = false;
+        const fab = document.getElementById('floating-switcher');
+        if (fab) fab.classList.add('hidden');
+        const resetBtn = document.getElementById('floating-reset');
+        if (resetBtn) resetBtn.classList.add('hidden');
+        alert('テーブルがリセットされました');
+        showTableSelect();
+        return;
+      }
+      // フェーズが変わってたら（誰かが抽選を引き当てた）通常画面遷移
+      if (tableData.phase !== 'volunteer') {
+        stopResetCheckPolling();
+        lastTableDataCache = tableData;
+        adjustPollingInterval(tableData.phase, tableData.answererId === getActiveId(), tableData);
+        routeByPhase(tableData);
+      }
+    } catch (e) {
+      console.error('Reset check error:', e);
+    }
+  }, 8000);  // 8秒間隔（軽量に）
+}
+
+function stopResetCheckPolling() {
+  if (state.resetCheckTimer) {
+    clearInterval(state.resetCheckTimer);
+    state.resetCheckTimer = null;
   }
 }
 
