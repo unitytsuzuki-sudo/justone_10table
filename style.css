@@ -636,6 +636,37 @@ label {
   white-space: nowrap;
 }
 
+/* フローティングリセットボタン */
+.floating-reset {
+  position: fixed;
+  bottom: 20px;
+  left: 20px;
+  width: 56px;
+  height: 56px;
+  background: white;
+  border: 3px solid var(--ink);
+  border-radius: 50%;
+  cursor: pointer;
+  box-shadow: 0 6px 0 var(--ink);
+  z-index: 90;
+  font-family: inherit;
+  font-size: 24px;
+  transition: all 0.1s;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.floating-reset:active {
+  transform: translateY(6px);
+  box-shadow: 0 0 0 var(--ink);
+}
+
+.floating-reset:hover {
+  background: #fff5e0;
+}
+
 @keyframes floating-pulse {
   0%, 100% { transform: scale(1); }
   50% { transform: scale(1.05); }

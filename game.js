@@ -340,6 +340,7 @@ async function startGame() {
       t.result = null;
       return t;
     });
+    state.pickInitialized = false;  // 次のお題選択でランダム化
   } catch (e) {
     alert('ゲーム開始に失敗: ' + e.message);
   }
@@ -370,6 +371,8 @@ async function leaveTable() {
   // フローティングボタンを隠す
   const fab = document.getElementById('floating-switcher');
   if (fab) fab.classList.add('hidden');
+  const resetBtn = document.getElementById('floating-reset');
+  if (resetBtn) resetBtn.classList.add('hidden');
   showTableSelect();
 }
 
@@ -497,6 +500,13 @@ function renderPickScreen() {
       opt.textContent = `${id}番 — ${card.theme}`;
       sel.appendChild(opt);
     });
+  }
+  // 画面を開くたびにランダムでカードを初期選択（state.pickInitialized 管理）
+  if (!state.pickInitialized) {
+    const allIds = getAllCardIds();
+    const randomId = allIds[Math.floor(Math.random() * allIds.length)];
+    sel.value = randomId;
+    state.pickInitialized = true;
   }
 }
 
@@ -805,8 +815,39 @@ async function nextRound() {
       t.result = null;
       return t;
     });
+    state.pickInitialized = false;
   } catch (e) {
     alert('次のゲーム開始に失敗: ' + e.message);
+  }
+}
+
+// ゲームリセット（プレイヤーは残す、ロビーに戻す）
+async function resetGame() {
+  if (!confirm('このテーブルのゲームをリセットしますか？\n\n・プレイヤーは残ります\n・お題・ヒント・回答は全部消えます\n・ロビーに戻ります')) return;
+  try {
+    await updateTable(t => {
+      t.phase = 'lobby';
+      t.candidates = [];
+      t.answererId = null;
+      t.cardId = null;
+      t.item = null;
+      t.topic = null;
+      t.theme = null;
+      t.hints = {};
+      t.revealed = false;
+      t.attempts = [];
+      t.result = null;
+      return t;
+    });
+    state.pickInitialized = false;
+    state.lastHintInputOwner = null;
+    // 入力欄もクリア
+    const hintInput = document.getElementById('hint-input');
+    if (hintInput) hintInput.value = '';
+    const ansInput = document.getElementById('answer-input');
+    if (ansInput) ansInput.value = '';
+  } catch (e) {
+    alert('リセット失敗: ' + e.message);
   }
 }
 
@@ -840,6 +881,16 @@ function routeByPhase(t) {
 
   // 全画面で切替UI更新
   renderControlSwitcher(t);
+
+  // リセットボタンの表示制御（ロビー以外で表示）
+  const resetBtn = document.getElementById('floating-reset');
+  if (resetBtn) {
+    if (t.phase && t.phase !== 'lobby') {
+      resetBtn.classList.remove('hidden');
+    } else {
+      resetBtn.classList.add('hidden');
+    }
+  }
 
   if (t.phase === 'lobby') {
     target = 'lobby';
