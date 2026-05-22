@@ -499,12 +499,12 @@ function renderVolunteerScreen(tableData) {
   const btnReady = document.getElementById('btn-confirm-answerer');
   const myActiveId = getActiveId();
   const isReady = readyList.includes(myActiveId);
-  if (candidates.length === 0) {
-    btnReady.disabled = true;
-    btnReady.textContent = '🎲 立候補者が出るまで待機';
-  } else if (isReady) {
+  if (isReady) {
     btnReady.disabled = false;
     btnReady.textContent = '✅ 準備完了！（取り消す）';
+  } else if (candidates.length === 0) {
+    btnReady.disabled = false;
+    btnReady.textContent = '🎲 やる人いない→誰かに任せる';
   } else {
     btnReady.disabled = false;
     btnReady.textContent = '🎲 準備完了';
@@ -560,9 +560,6 @@ async function confirmAnswerer() {
   const activeId = getActiveId();
   try {
     await updateTable(t => {
-      const candidates = t.candidates || [];
-      if (candidates.length === 0) return null;
-
       t.readyToConfirm = t.readyToConfirm || [];
 
       // 既に準備完了状態なら取り消し、そうでなければ追加
@@ -575,8 +572,17 @@ async function confirmAnswerer() {
       // 全員が準備完了になったら自動抽選
       const allReady = t.players.every(p => t.readyToConfirm.includes(p.id));
       if (allReady) {
-        const idx = Math.floor(Math.random() * candidates.length);
-        t.answererId = candidates[idx];
+        const candidates = t.candidates || [];
+        let pool;
+        if (candidates.length > 0) {
+          // 立候補者がいればその中からランダム
+          pool = candidates;
+        } else {
+          // 立候補者ゼロなら全員からランダム
+          pool = t.players.map(p => p.id);
+        }
+        const idx = Math.floor(Math.random() * pool.length);
+        t.answererId = pool[idx];
         t.phase = 'picking';
         t.candidates = [];
         t.readyToConfirm = [];

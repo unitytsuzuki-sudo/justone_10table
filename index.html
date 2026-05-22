@@ -114,7 +114,9 @@
       <div class="card-title">回答者を決めよう！</div>
       <p class="hint-text">
         やってみたい人は「やる！」を押してください。<br>
-        全員が「準備完了」を押したら、立候補者からランダムで決定します。
+        全員が「準備完了」を押したら回答者が決まります。<br>
+        ・立候補者がいる → その中からランダム抽選<br>
+        ・誰も立候補しない → 全員からランダム抽選
       </p>
 
       <div class="candidates-display">
@@ -126,7 +128,7 @@
         🎤 やる！
       </button>
 
-      <button class="btn btn-accent" onclick="confirmAnswerer()" id="btn-confirm-answerer" style="margin-top:12px;" disabled>
+      <button class="btn btn-accent" onclick="confirmAnswerer()" id="btn-confirm-answerer" style="margin-top:12px;">
         🎲 準備完了
       </button>
     </div>
