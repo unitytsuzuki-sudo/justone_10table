@@ -473,10 +473,25 @@ function getControllablePlayers(t) {
 // ---------- 立候補画面 ----------
 function renderVolunteerScreen(tableData) {
   const list = document.getElementById('candidates-list');
-  list.innerHTML = '';
   const candidates = tableData.candidates || [];
   const readyList = tableData.readyToConfirm || [];
+  const myActiveId = getActiveId();
 
+  // 自分のローカルステート（最後に押したボタンの状態）を優先
+  // これにより、Gist同期遅延でボタンが勝手に戻る現象を防ぐ
+  if (!state.localVolunteerState) state.localVolunteerState = {};
+  if (!state.localReadyState) state.localReadyState = {};
+
+  // Gistの状態とローカルが矛盾していたらローカルを採用
+  const myIsCandidate = state.localVolunteerState[myActiveId] !== undefined
+    ? state.localVolunteerState[myActiveId]
+    : candidates.includes(myActiveId);
+  const myIsReady = state.localReadyState[myActiveId] !== undefined
+    ? state.localReadyState[myActiveId]
+    : readyList.includes(myActiveId);
+
+  // 立候補チップは常に最新表示（他の人の状況を見るのは重要）
+  list.innerHTML = '';
   if (candidates.length === 0) {
     list.innerHTML = '<div style="font-size:12px; color:var(--ink-soft); font-weight:700;">まだ誰も立候補していません</div>';
   } else {
@@ -485,13 +500,14 @@ function renderVolunteerScreen(tableData) {
       if (!p) return;
       const chip = document.createElement('div');
       chip.className = 'player-chip candidate';
-      chip.textContent = '🙋 ' + p.name + (p.id === getActiveId() ? '（あなた）' : '');
+      chip.textContent = '🙋 ' + p.name + (p.id === myActiveId ? '（あなた）' : '');
       list.appendChild(chip);
     });
   }
 
+  // 「やる！」ボタンは自分のローカル状態を優先
   const btnVol = document.getElementById('btn-volunteer');
-  if (candidates.includes(getActiveId())) {
+  if (myIsCandidate) {
     btnVol.textContent = '↩ 立候補を取り消す';
     btnVol.classList.add('cancel');
   } else {
@@ -499,11 +515,9 @@ function renderVolunteerScreen(tableData) {
     btnVol.classList.remove('cancel');
   }
 
-  // 「準備完了」ボタンの状態
+  // 「準備完了」ボタンも自分のローカル状態を優先
   const btnReady = document.getElementById('btn-confirm-answerer');
-  const myActiveId = getActiveId();
-  const isReady = readyList.includes(myActiveId);
-  if (isReady) {
+  if (myIsReady) {
     btnReady.disabled = false;
     btnReady.textContent = '✅ 準備完了！（取り消す）';
   } else if (candidates.length === 0) {
@@ -514,7 +528,7 @@ function renderVolunteerScreen(tableData) {
     btnReady.textContent = '🎲 準備完了';
   }
 
-  // 「準備完了状況」を表示
+  // 「準備完了状況」は最新表示
   renderReadyStatus(tableData);
 }
 
@@ -542,14 +556,43 @@ function renderReadyStatus(tableData) {
 
 async function volunteer() {
   const activeId = getActiveId();
+
+  // 押した瞬間にローカル状態を更新（Gist書き込み完了を待たない）
+  if (!state.localVolunteerState) state.localVolunteerState = {};
+  if (!state.localReadyState) state.localReadyState = {};
+
+  // 現在の自分の状態を確認（ローカル優先、なければGistキャッシュから）
+  const currentlyCandidate = state.localVolunteerState[activeId] !== undefined
+    ? state.localVolunteerState[activeId]
+    : (lastTableDataCache?.candidates || []).includes(activeId);
+
+  // 反転
+  state.localVolunteerState[activeId] = !currentlyCandidate;
+  // 立候補状態が変わったら、自分の準備完了もリセット（仕様通り）
+  state.localReadyState[activeId] = false;
+
+  // 即座にボタン見た目を更新
+  if (lastTableDataCache) {
+    // 一時的にローカル状態を反映したデータで再描画
+    const tempData = JSON.parse(JSON.stringify(lastTableDataCache));
+    tempData.candidates = tempData.candidates || [];
+    if (state.localVolunteerState[activeId]) {
+      if (!tempData.candidates.includes(activeId)) tempData.candidates.push(activeId);
+    } else {
+      tempData.candidates = tempData.candidates.filter(id => id !== activeId);
+    }
+    tempData.readyToConfirm = [];
+    renderVolunteerScreen(tempData);
+  }
+
   try {
     await updateTable(t => {
       t.candidates = t.candidates || [];
       t.readyToConfirm = t.readyToConfirm || [];
-      if (t.candidates.includes(activeId)) {
-        t.candidates = t.candidates.filter(id => id !== activeId);
+      if (state.localVolunteerState[activeId]) {
+        if (!t.candidates.includes(activeId)) t.candidates.push(activeId);
       } else {
-        t.candidates.push(activeId);
+        t.candidates = t.candidates.filter(id => id !== activeId);
       }
       // 立候補の変更があったら、全員の「準備完了」をリセット（再確認させる）
       t.readyToConfirm = [];
@@ -557,20 +600,41 @@ async function volunteer() {
     });
   } catch (e) {
     alert('立候補失敗: ' + e.message);
+    // 失敗したらローカルもロールバック
+    delete state.localVolunteerState[activeId];
   }
 }
 
 async function confirmAnswerer() {
   const activeId = getActiveId();
+
+  // 押した瞬間にローカル状態を更新
+  if (!state.localReadyState) state.localReadyState = {};
+  const currentlyReady = state.localReadyState[activeId] !== undefined
+    ? state.localReadyState[activeId]
+    : (lastTableDataCache?.readyToConfirm || []).includes(activeId);
+  state.localReadyState[activeId] = !currentlyReady;
+
+  // 即座にボタン見た目を更新
+  if (lastTableDataCache) {
+    const tempData = JSON.parse(JSON.stringify(lastTableDataCache));
+    tempData.readyToConfirm = tempData.readyToConfirm || [];
+    if (state.localReadyState[activeId]) {
+      if (!tempData.readyToConfirm.includes(activeId)) tempData.readyToConfirm.push(activeId);
+    } else {
+      tempData.readyToConfirm = tempData.readyToConfirm.filter(id => id !== activeId);
+    }
+    renderVolunteerScreen(tempData);
+  }
+
   try {
     await updateTable(t => {
       t.readyToConfirm = t.readyToConfirm || [];
 
-      // 既に準備完了状態なら取り消し、そうでなければ追加
-      if (t.readyToConfirm.includes(activeId)) {
-        t.readyToConfirm = t.readyToConfirm.filter(id => id !== activeId);
+      if (state.localReadyState[activeId]) {
+        if (!t.readyToConfirm.includes(activeId)) t.readyToConfirm.push(activeId);
       } else {
-        t.readyToConfirm.push(activeId);
+        t.readyToConfirm = t.readyToConfirm.filter(id => id !== activeId);
       }
 
       // 全員が準備完了になったら自動抽選
@@ -592,11 +656,15 @@ async function confirmAnswerer() {
         t.readyToConfirm = [];
         t.hints = {};
         t.attempts = [];
+        // 抽選成立したのでローカル状態クリア
+        state.localVolunteerState = {};
+        state.localReadyState = {};
       }
       return t;
     });
   } catch (e) {
     alert('準備完了失敗: ' + e.message);
+    delete state.localReadyState[activeId];
   }
 }
 
@@ -1162,6 +1230,12 @@ function routeByPhase(t) {
 
   // フェーズに応じてポーリング間隔を調整（回答中・入力中は停止）
   adjustPollingInterval(t.phase, isAnswerer, t);
+
+  // 立候補フェーズから離れたらローカル状態クリア
+  if (t.phase !== 'volunteer') {
+    state.localVolunteerState = {};
+    state.localReadyState = {};
+  }
 
   // 全画面で切替UI更新
   renderControlSwitcher(t);
