@@ -1,0 +1,1300 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>JUST ONE｜デモv3</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=M+PLUS+Rounded+1c:wght@500;700;800;900&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --primary: #ff6b9d;
+    --primary-dark: #e84a82;
+    --secondary: #4ecdc4;
+    --accent: #ffd93d;
+    --purple: #a78bfa;
+    --orange: #ff8c42;
+    --green: #6bcb77;
+    --ink: #2d2d44;
+    --ink-soft: #6c6c8a;
+    --paper: #fffef9;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: linear-gradient(135deg, #ff9a8b 0%, #ffb8d1 25%, #c4a4ff 50%, #8ec5fc 75%, #a0e7e5 100%);
+    background-attachment: fixed;
+    color: var(--ink);
+    font-family: "M PLUS Rounded 1c", sans-serif;
+    font-weight: 700;
+    min-height: 100vh;
+    padding: 16px;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .demo-control {
+    max-width: 1200px;
+    margin: 0 auto 16px;
+    background: var(--ink);
+    border-radius: 20px;
+    padding: 18px;
+    color: white;
+    box-shadow: 0 8px 0 rgba(0,0,0,0.2);
+  }
+
+  .demo-control h2 {
+    font-size: 14px;
+    margin-bottom: 12px;
+    color: var(--accent);
+  }
+
+  .demo-section { margin-bottom: 12px; }
+
+  .demo-section-title {
+    font-size: 11px;
+    color: rgba(255,255,255,0.6);
+    margin-bottom: 6px;
+    letter-spacing: 0.1em;
+  }
+
+  .player-tabs { display: flex; gap: 6px; flex-wrap: wrap; }
+
+  .player-tab {
+    background: white;
+    color: var(--ink);
+    border: none;
+    padding: 8px 14px;
+    border-radius: 999px;
+    cursor: pointer;
+    font-size: 12px;
+    font-family: inherit;
+    font-weight: 700;
+    box-shadow: 0 3px 0 rgba(0,0,0,0.2);
+  }
+  .player-tab:active { transform: translateY(3px); box-shadow: 0 0 0 rgba(0,0,0,0.2); }
+  .player-tab.active { background: var(--accent); box-shadow: 0 3px 0 #d4a800; }
+  .player-tab .role { font-size: 10px; opacity: 0.7; margin-left: 2px; font-weight: 500; }
+
+  .player-add-btn, .player-remove-btn {
+    color: white;
+    border: none;
+    padding: 8px 14px;
+    border-radius: 999px;
+    font-family: inherit;
+    font-weight: 700;
+    font-size: 12px;
+    cursor: pointer;
+    box-shadow: 0 3px 0 rgba(0,0,0,0.3);
+  }
+  .player-add-btn { background: var(--secondary); }
+  .player-remove-btn { background: #ff5252; }
+
+  .phase-badge {
+    display: inline-block;
+    background: var(--secondary);
+    color: white;
+    padding: 3px 12px;
+    border-radius: 999px;
+    font-weight: 800;
+    margin-left: 4px;
+    font-size: 11px;
+  }
+
+  .demo-info { font-size: 11px; color: rgba(255,255,255,0.7); line-height: 1.5; margin-top: 8px; }
+
+  .reset-btn {
+    background: transparent;
+    border: 2px solid rgba(255,255,255,0.3);
+    color: white;
+    padding: 6px 14px;
+    border-radius: 999px;
+    cursor: pointer;
+    font-size: 11px;
+    font-family: inherit;
+    font-weight: 700;
+    margin-top: 8px;
+  }
+
+  .phone-frame {
+    max-width: 420px;
+    margin: 0 auto;
+    background: white;
+    border-radius: 32px;
+    padding: 24px 18px 36px;
+    box-shadow: 0 24px 60px rgba(0,0,0,0.3);
+  }
+
+  .header { text-align: center; padding: 8px 0 24px; }
+  .logo { display: inline-block; position: relative; }
+  .logo-text {
+    font-family: "Fredoka", sans-serif;
+    font-weight: 700;
+    font-size: 52px;
+    background: linear-gradient(135deg, #ff6b9d 0%, #ffd93d 50%, #4ecdc4 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    letter-spacing: -0.02em;
+    line-height: 1;
+  }
+  .logo-burst { position: absolute; font-size: 24px; animation: pop 2s infinite; }
+  .logo-burst.left { top: -8px; left: -16px; }
+  .logo-burst.right { top: 4px; right: -20px; animation-delay: 0.5s; }
+  .logo-burst.down { bottom: -8px; right: 20%; animation-delay: 1s; }
+  @keyframes pop {
+    0%, 100% { transform: scale(1) rotate(0deg); }
+    50% { transform: scale(1.3) rotate(15deg); }
+  }
+  .tagline { font-size: 11px; color: var(--ink-soft); margin-top: 8px; letter-spacing: 0.15em; }
+
+  .card {
+    background: var(--paper);
+    border: 3px solid var(--ink);
+    border-radius: 20px;
+    padding: 20px 18px;
+    margin-bottom: 14px;
+    box-shadow: 6px 6px 0 var(--ink);
+  }
+  .card.pink { background: #ffe9f1; }
+  .card.yellow { background: #fff7d6; }
+  .card.mint { background: #d4f7f0; }
+  .card.lavender { background: #efe7ff; }
+
+  .card-label {
+    display: inline-block;
+    background: var(--ink);
+    color: white;
+    font-size: 10px;
+    letter-spacing: 0.15em;
+    padding: 3px 10px;
+    border-radius: 999px;
+    margin-bottom: 10px;
+  }
+
+  .card-title { font-size: 18px; font-weight: 900; margin-bottom: 14px; color: var(--ink); }
+  .hint-text { font-size: 12px; color: var(--ink-soft); margin: 8px 0; font-weight: 700; line-height: 1.6; }
+
+  input[type="text"], select {
+    width: 100%;
+    padding: 14px 16px;
+    font-size: 16px;
+    font-family: inherit;
+    font-weight: 700;
+    background: white;
+    border: 3px solid var(--ink);
+    border-radius: 14px;
+    color: var(--ink);
+    -webkit-appearance: none;
+  }
+  input:focus, select:focus { outline: none; background: #fffce8; }
+
+  label { display: block; font-size: 12px; color: var(--ink); font-weight: 800; margin-bottom: 6px; }
+  .field { margin-bottom: 14px; }
+
+  .btn {
+    display: block;
+    width: 100%;
+    padding: 16px;
+    font-size: 16px;
+    font-weight: 900;
+    font-family: inherit;
+    border: 3px solid var(--ink);
+    border-radius: 14px;
+    cursor: pointer;
+    letter-spacing: 0.05em;
+    transition: all 0.1s;
+    box-shadow: 0 6px 0 var(--ink);
+    color: var(--ink);
+  }
+  .btn:active { transform: translateY(6px); box-shadow: 0 0 0 var(--ink); }
+  .btn-primary { background: var(--primary); color: white; }
+  .btn-secondary { background: var(--secondary); color: white; }
+  .btn-accent { background: var(--accent); }
+  .btn-ghost { background: transparent; color: var(--ink-soft); border: none; box-shadow: none; padding: 8px; font-size: 13px; font-weight: 700; }
+  .btn-ghost:active { transform: none; box-shadow: none; }
+  .btn:disabled { background: #e0e0e0; color: #999; cursor: not-allowed; box-shadow: 0 6px 0 #aaa; border-color: #aaa; }
+  .btn-row { display: flex; gap: 10px; }
+  .btn-row .btn { flex: 1; }
+
+  .table-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; }
+  .table-cell {
+    aspect-ratio: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: white;
+    border: 3px solid var(--ink);
+    border-radius: 12px;
+    font-size: 22px;
+    font-weight: 900;
+    color: var(--ink);
+    cursor: pointer;
+    box-shadow: 0 4px 0 var(--ink);
+  }
+  .table-cell:active { transform: translateY(4px); box-shadow: 0 0 0 var(--ink); }
+  .table-cell.selected { background: var(--primary); color: white; }
+  .table-cell.letter { font-size: 28px; font-family: "Fredoka", sans-serif; }
+  .table-cell.letter:nth-child(1) { background: #ffd6e0; }
+  .table-cell.letter:nth-child(2) { background: #fff3a3; }
+  .table-cell.letter:nth-child(3) { background: #b8f0e8; }
+  .table-cell.letter:nth-child(4) { background: #d6c5ff; }
+
+  .topic-display {
+    background: linear-gradient(135deg, #fff7d6 0%, #ffd6e0 100%);
+    border: 3px solid var(--ink);
+    border-radius: 18px;
+    padding: 24px 16px;
+    text-align: center;
+    margin: 14px 0;
+    box-shadow: 4px 4px 0 var(--ink);
+    position: relative;
+    overflow: hidden;
+  }
+  .topic-display::before { content: "✨"; position: absolute; top: 8px; left: 12px; font-size: 16px; }
+  .topic-display::after { content: "✨"; position: absolute; bottom: 8px; right: 12px; font-size: 16px; }
+  .topic-theme { font-size: 11px; color: var(--ink-soft); font-weight: 800; letter-spacing: 0.2em; margin-bottom: 10px; }
+  .topic-word { font-size: 36px; color: var(--ink); font-weight: 900; line-height: 1.2; }
+
+  .hints-list { display: flex; flex-direction: column; gap: 8px; }
+  .hint-item {
+    background: white;
+    border: 2.5px solid var(--ink);
+    border-radius: 12px;
+    padding: 12px 14px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 15px;
+    box-shadow: 0 3px 0 var(--ink);
+  }
+  .hint-item.duplicate {
+    background: #ffe0e0;
+    color: #999;
+    text-decoration: line-through;
+    text-decoration-thickness: 2px;
+    box-shadow: 0 3px 0 #ccc;
+    border-color: #ccc;
+    transform: rotate(-1deg);
+  }
+  .hint-item.waiting { background: transparent; border-style: dashed; color: var(--ink-soft); font-style: italic; box-shadow: none; }
+  .hint-name { font-size: 11px; color: var(--ink-soft); font-weight: 700; }
+  .hint-word { font-weight: 900; font-size: 16px; }
+  .hint-badge { font-size: 10px; background: var(--secondary); color: white; padding: 3px 8px; border-radius: 999px; font-weight: 800; }
+  .hint-badge.waiting { background: #ddd; color: var(--ink-soft); }
+
+  .players-list { display: flex; flex-wrap: wrap; gap: 8px; }
+  .player-chip {
+    background: white;
+    border: 2.5px solid var(--ink);
+    border-radius: 999px;
+    padding: 8px 16px;
+    font-size: 13px;
+    font-weight: 800;
+    box-shadow: 0 3px 0 var(--ink);
+  }
+  .player-chip.you { background: var(--primary); color: white; }
+  .player-chip.host { background: var(--accent); }
+  .player-chip.candidate { background: var(--purple); color: white; animation: pulse 1.5s infinite; }
+
+  @keyframes pulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.05); } }
+
+  .status-banner {
+    background: var(--green);
+    color: white;
+    padding: 12px 18px;
+    border-radius: 14px;
+    margin-bottom: 14px;
+    font-size: 14px;
+    text-align: center;
+    font-weight: 900;
+    letter-spacing: 0.05em;
+    border: 3px solid var(--ink);
+    box-shadow: 0 4px 0 var(--ink);
+  }
+  .status-banner.warning { background: var(--orange); }
+  .status-banner.danger { background: var(--primary); }
+  .status-banner.purple { background: var(--purple); }
+
+  .candidate-btn {
+    background: linear-gradient(135deg, #ff6b9d 0%, #ffd93d 100%);
+    color: var(--ink);
+    border: 3px solid var(--ink);
+    border-radius: 14px;
+    padding: 18px;
+    font-family: inherit;
+    font-weight: 900;
+    font-size: 18px;
+    cursor: pointer;
+    width: 100%;
+    box-shadow: 0 6px 0 var(--ink);
+    margin-top: 12px;
+    letter-spacing: 0.05em;
+  }
+  .candidate-btn:active { transform: translateY(6px); box-shadow: 0 0 0 var(--ink); }
+  .candidate-btn.cancel { background: #ddd; color: var(--ink-soft); }
+
+  .candidates-display {
+    background: #efe7ff;
+    border: 2.5px dashed var(--purple);
+    border-radius: 12px;
+    padding: 14px;
+    margin-top: 12px;
+  }
+  .candidates-display .label { font-size: 11px; color: var(--purple); font-weight: 800; margin-bottom: 8px; letter-spacing: 0.1em; }
+
+  .result-big { text-align: center; padding: 20px 16px; }
+  .result-emoji { font-size: 80px; margin-bottom: 12px; display: inline-block; animation: bounce 0.6s ease; }
+  @keyframes bounce {
+    0% { transform: scale(0) rotate(-180deg); }
+    60% { transform: scale(1.2) rotate(10deg); }
+    100% { transform: scale(1) rotate(0); }
+  }
+  .result-text { font-size: 32px; font-weight: 900; margin-bottom: 10px; color: var(--ink); }
+  .result-text.win { background: linear-gradient(135deg, #ff6b9d, #ffd93d); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+  .result-answer { font-size: 14px; color: var(--ink-soft); font-weight: 700; }
+  .result-answer strong { color: var(--primary-dark); font-size: 16px; }
+
+  .rules-list { list-style: none; padding: 0; counter-reset: rule-counter; }
+  .rules-list li { padding: 6px 0 6px 28px; position: relative; font-size: 13px; line-height: 1.6; color: var(--ink); font-weight: 700; }
+  .rules-list li::before {
+    content: counter(rule-counter);
+    counter-increment: rule-counter;
+    position: absolute;
+    left: 0;
+    top: 6px;
+    width: 20px;
+    height: 20px;
+    background: var(--primary);
+    color: white;
+    border-radius: 50%;
+    text-align: center;
+    font-size: 11px;
+    font-weight: 900;
+    line-height: 20px;
+  }
+
+  .hidden { display: none !important; }
+
+  .typing-dots span { animation: dot 1.4s infinite; opacity: 0; font-size: 20px; }
+  .typing-dots span:nth-child(2) { animation-delay: 0.2s; }
+  .typing-dots span:nth-child(3) { animation-delay: 0.4s; }
+  @keyframes dot { 0%, 60%, 100% { opacity: 0; } 30% { opacity: 1; } }
+
+  .auto-action {
+    background: #fff7d6;
+    border: 2.5px dashed var(--ink);
+    border-radius: 12px;
+    padding: 12px;
+    font-size: 12px;
+    color: var(--ink);
+    margin-top: 12px;
+    font-weight: 700;
+    line-height: 1.6;
+  }
+  .auto-btn {
+    background: var(--accent);
+    color: var(--ink);
+    border: 2.5px solid var(--ink);
+    padding: 10px 14px;
+    border-radius: 10px;
+    font-family: inherit;
+    font-size: 12px;
+    font-weight: 900;
+    cursor: pointer;
+    margin-top: 8px;
+    box-shadow: 0 3px 0 var(--ink);
+    width: 100%;
+  }
+  .auto-btn:active { transform: translateY(3px); box-shadow: 0 0 0 var(--ink); }
+
+  .confetti { position: fixed; width: 10px; height: 10px; pointer-events: none; animation: fall 3s linear forwards; z-index: 1000; }
+  @keyframes fall { 0% { transform: translateY(-100vh) rotate(0deg); opacity: 1; } 100% { transform: translateY(100vh) rotate(720deg); opacity: 0; } }
+</style>
+</head>
+<body>
+
+<!-- デモ操作パネル -->
+<div class="demo-control">
+  <h2>🎮 デモ操作パネル v3</h2>
+
+  <div class="demo-section">
+    <div class="demo-section-title">プレイヤー切替</div>
+    <div class="player-tabs" id="player-tabs"></div>
+  </div>
+
+  <div class="demo-section">
+    <div class="demo-section-title">人数調整</div>
+    <div style="display:flex; gap:6px;">
+      <button class="player-add-btn" onclick="addPlayer()">＋ 追加</button>
+      <button class="player-remove-btn" onclick="removeLastPlayer()">－ 削除</button>
+    </div>
+  </div>
+
+  <div class="demo-info">
+    現在のフェーズ：<span class="phase-badge" id="phase-display">テーブル選択</span>
+    <br>選択中テーブル：<span id="current-table">未選択</span>
+    <br>参加人数：<span id="player-count">0</span>人
+  </div>
+
+  <button class="reset-btn" onclick="resetDemo()">最初からやり直す</button>
+</div>
+
+<div class="phone-frame">
+
+  <div class="header">
+    <div class="logo">
+      <div class="logo-text">JUST ONE</div>
+      <span class="logo-burst left">⭐</span>
+      <span class="logo-burst right">💫</span>
+      <span class="logo-burst down">✨</span>
+    </div>
+    <div class="tagline">— BBQ EDITION —</div>
+  </div>
+
+  <!-- 画面: テーブル選択 -->
+  <div id="screen-table">
+    <div class="card pink">
+      <div class="card-label">🏕 STEP 1</div>
+      <div class="card-title">テーブルを選ぼう</div>
+      <p class="hint-text">同じ卓のメンバーは同じ番号を選んでください</p>
+      <div class="table-grid" id="table-grid"></div>
+    </div>
+    <button class="btn btn-primary" onclick="joinTable()" id="btn-join" disabled>このテーブルに入る 🚪</button>
+  </div>
+
+  <!-- 画面: ロビー -->
+  <div id="screen-lobby" class="hidden">
+    <div class="card pink">
+      <div class="card-label">🏕 テーブル <span id="lobby-table-num"></span></div>
+      <div class="card-title">参加者あつまり中 🎉</div>
+      <div class="players-list" id="lobby-players"></div>
+      <p class="hint-text">3人以上集まったらゲームを開始できます</p>
+    </div>
+    <div class="card yellow">
+      <div class="card-title" style="font-size:15px;">🎯 あそびかた</div>
+      <ul class="rules-list">
+        <li>回答者になりたい人が「やる！」を押す</li>
+        <li>回答者がカード番号とA〜Dを指定</li>
+        <li>回答者以外にお題が表示される</li>
+        <li>全員がヒントを1単語で入力</li>
+        <li>かぶったヒントは無効化される</li>
+        <li>回答者は残ったヒントで3回まで答えられる</li>
+      </ul>
+    </div>
+    <button class="btn btn-primary" onclick="startGame()" id="btn-start">ゲーム開始 🚀</button>
+  </div>
+
+  <!-- 画面: 立候補 -->
+  <div id="screen-volunteer" class="hidden">
+    <div class="status-banner purple">🙋 回答者になりたい人？</div>
+    <div class="card lavender">
+      <div class="card-title">回答者を決めよう！</div>
+      <p class="hint-text">
+        やってみたい人は「やる！」を押してください。<br>
+        立候補が複数いたら、その中からランダムで決まります。
+      </p>
+      <div class="candidates-display">
+        <div class="label">🙋 立候補中</div>
+        <div class="players-list" id="candidates-list"></div>
+      </div>
+      <button class="candidate-btn" id="btn-volunteer" onclick="volunteer()">
+        🎤 やる！
+      </button>
+      <button class="btn btn-accent" onclick="confirmAnswerer()" id="btn-confirm-answerer" style="margin-top:12px;" disabled>
+        🎲 立候補者から決める
+      </button>
+      <div class="auto-action" id="auto-volunteer-area"></div>
+    </div>
+  </div>
+
+  <!-- 画面: お題選択 -->
+  <div id="screen-pick" class="hidden">
+    <div class="status-banner danger">🎤 あなたが回答者です</div>
+    <div class="card pink">
+      <div class="card-title">カード番号を選ぶ</div>
+      <p class="hint-text">お題の中身は見ずに、カード番号とA〜Dを選んでね</p>
+      <div class="field">
+        <label>📇 カード番号</label>
+        <select id="pick-card"></select>
+      </div>
+      <div class="field">
+        <label>🎲 お題（A〜D）</label>
+        <div class="table-grid" style="grid-template-columns: repeat(4, 1fr);">
+          <div class="table-cell letter" onclick="pickItem('A')">A</div>
+          <div class="table-cell letter" onclick="pickItem('B')">B</div>
+          <div class="table-cell letter" onclick="pickItem('C')">C</div>
+          <div class="table-cell letter" onclick="pickItem('D')">D</div>
+        </div>
+      </div>
+      <button class="btn btn-accent" onclick="randomPick()">🎰 ランダムで選ぶ</button>
+    </div>
+  </div>
+
+  <!-- 画面: ヒント入力 -->
+  <div id="screen-hint" class="hidden">
+    <div class="status-banner">✏️ ヒントを書いてください</div>
+    <div class="card yellow">
+      <div class="card-label">📝 お題</div>
+      <div class="topic-display">
+        <div class="topic-theme" id="hint-theme"></div>
+        <div class="topic-word" id="hint-topic"></div>
+      </div>
+      <p class="hint-text">
+        回答者「<span id="hint-answerer"></span>」さんが当てられるよう、ヒントを1単語で。<br>
+        ※お題そのもの・英訳・しりとり・一部含む単語はNG
+      </p>
+      <div class="field">
+        <input type="text" id="hint-input" placeholder="ヒント（1単語）" maxlength="20">
+      </div>
+      <button class="btn btn-primary" onclick="submitHint()" id="btn-submit-hint">送信 ✨</button>
+    </div>
+    <div class="card mint">
+      <div class="card-label">⏳ 入力状況</div>
+      <div class="hints-list" id="hint-status"></div>
+      <div class="auto-action" id="auto-hint-area"></div>
+    </div>
+  </div>
+
+  <!-- 画面: 回答者待機 -->
+  <div id="screen-answerer-wait" class="hidden">
+    <div class="status-banner warning">⏳ みんなが入力中<span class="typing-dots"><span>.</span><span>.</span><span>.</span></span></div>
+    <div class="card lavender">
+      <div class="card-title">のんびり待ってね ☕</div>
+      <p class="hint-text">他のメンバーがヒントを書いて、かぶりチェックが終わったら、ヒントが表示されるよ</p>
+      <div class="auto-action" id="auto-wait-area"></div>
+    </div>
+  </div>
+
+  <!-- 画面: かぶりチェック -->
+  <div id="screen-review" class="hidden">
+    <div class="status-banner warning">🔍 かぶりチェック</div>
+    <div class="card mint">
+      <div class="card-label">📝 お題</div>
+      <div class="topic-display">
+        <div class="topic-word" id="review-topic"></div>
+      </div>
+      <p class="hint-text">全員のヒントが揃いました！かぶったヒントは取り消し線が引かれます</p>
+      <div class="hints-list" id="review-hints"></div>
+      <button class="btn btn-secondary" onclick="revealHints()" style="margin-top:14px;">回答者に見せる 👀</button>
+    </div>
+  </div>
+
+  <!-- 画面: 回答 -->
+  <div id="screen-answer" class="hidden">
+    <div class="status-banner purple">💡 ヒントを見て答えてね</div>
+    <div class="card pink">
+      <div class="card-label">💬 ヒント一覧</div>
+      <div class="hints-list" id="answer-hints"></div>
+    </div>
+    <div class="card yellow">
+      <div class="card-title">あなたの答え（残り <span id="attempts-left">3</span> 回）</div>
+      <div class="field">
+        <input type="text" id="answer-input" placeholder="お題を答える">
+      </div>
+      <div class="btn-row">
+        <button class="btn btn-primary" onclick="submitAnswer()">回答 ✊</button>
+        <button class="btn btn-secondary" onclick="giveUp()">降参 🏳️</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 画面: 観戦 -->
+  <div id="screen-watch" class="hidden">
+    <div class="status-banner warning">🤔 回答者が考え中<span class="typing-dots"><span>.</span><span>.</span><span>.</span></span></div>
+    <div class="card mint">
+      <div class="card-label">👀 お題（みんなだけが知ってる）</div>
+      <div class="topic-display">
+        <div class="topic-word" id="watch-topic"></div>
+      </div>
+    </div>
+    <div class="card lavender">
+      <div class="card-label">💬 公開ヒント</div>
+      <div class="hints-list" id="watch-hints"></div>
+    </div>
+    <div class="card pink">
+      <div class="card-label">🎯 回答状況</div>
+      <div class="hints-list" id="watch-attempts"></div>
+    </div>
+  </div>
+
+  <!-- 画面: 結果 -->
+  <div id="screen-result" class="hidden">
+    <div class="card yellow">
+      <div class="result-big">
+        <div class="result-emoji" id="result-emoji">🎉</div>
+        <div class="result-text" id="result-text">正解！</div>
+        <div class="result-answer">お題は <strong id="result-topic"></strong> でした</div>
+      </div>
+    </div>
+    <div class="card mint">
+      <div class="card-label">📜 回答履歴</div>
+      <div class="hints-list" id="result-history"></div>
+    </div>
+    <button class="btn btn-primary" onclick="nextRound()">次のゲームへ 🚀</button>
+  </div>
+
+</div>
+
+<script>
+// お題データ（縮小版）
+const TOPICS = [
+  { id: 1, theme: "定番", items: { A: "すいか", B: "花火", C: "カブトムシ", D: "海水浴" } },
+  { id: 2, theme: "食べ物", items: { A: "たこ焼き", B: "寿司", C: "カレー", D: "焼き鳥" } },
+  { id: 3, theme: "動物", items: { A: "パンダ", B: "ペンギン", C: "キリン", D: "ハムスター" } },
+  { id: 9, theme: "BBQ・夏", items: { A: "蚊取り線香", B: "クーラーボックス", C: "焼肉のタレ", D: "浮き輪" } },
+  { id: 15, theme: "飲み物", items: { A: "コーヒー", B: "ビール", C: "オレンジジュース", D: "牛乳" } },
+  { id: 18, theme: "動物", items: { A: "ニワトリ", B: "ブタ", C: "ヒツジ", D: "ウマ" } },
+  { id: 22, theme: "場所", items: { A: "図書館", B: "病院", C: "公園", D: "駅" } },
+  { id: 39, theme: "キャラ", items: { A: "ドラえもん", B: "アンパンマン", C: "ミッキーマウス", D: "スーパーマン" } },
+  { id: 41, theme: "行事", items: { A: "クリスマス", B: "お正月", C: "運動会", D: "七夕" } },
+  { id: 50, theme: "夏BBQ", items: { A: "麦わら帽子", B: "かき氷", C: "蚊", D: "扇風機" } },
+];
+
+const AI_HINTS = {
+  "すいか": ["夏", "緑", "種", "丸い", "甘い"],
+  "花火": ["夏祭り", "夜空", "音", "ドン", "浴衣"],
+  "カブトムシ": ["昆虫", "黒", "ツノ", "夏", "捕まえる"],
+  "海水浴": ["夏", "ビーチ", "波", "水着", "日焼け"],
+  "たこ焼き": ["大阪", "丸い", "粉もん", "ソース", "鰹節"],
+  "寿司": ["和食", "ネタ", "シャリ", "回転", "醤油"],
+  "カレー": ["インド", "辛い", "ルー", "ご飯", "黄色"],
+  "焼き鳥": ["居酒屋", "串", "タレ", "塩", "ねぎま"],
+  "パンダ": ["白黒", "笹", "中国", "上野", "丸い"],
+  "ペンギン": ["氷", "南極", "歩く", "白黒", "泳ぐ"],
+  "キリン": ["首", "長い", "サバンナ", "アフリカ", "斑点"],
+  "ハムスター": ["小さい", "ペット", "回し車", "頬", "可愛い"],
+  "蚊取り線香": ["夏", "煙", "渦巻き", "虫", "緑"],
+  "クーラーボックス": ["保冷", "氷", "アウトドア", "箱", "キャンプ"],
+  "焼肉のタレ": ["甘い", "茶色", "肉", "瓶", "エバラ"],
+  "浮き輪": ["プール", "丸い", "海", "ビニール", "膨らます"],
+  "コーヒー": ["黒", "豆", "苦い", "朝", "カフェ"],
+  "ビール": ["泡", "黄色", "乾杯", "苦い", "夏"],
+  "オレンジジュース": ["果物", "黄色", "甘い", "100%", "朝"],
+  "牛乳": ["白", "牛", "カルシウム", "朝", "コップ"],
+  "ニワトリ": ["コケコッコー", "卵", "鶏", "朝", "とさか"],
+  "ブタ": ["ピンク", "豚肉", "鼻", "農場", "可愛い"],
+  "ヒツジ": ["白", "毛", "もこもこ", "数える", "牧場"],
+  "ウマ": ["走る", "競馬", "騎手", "蹄", "速い"],
+  "図書館": ["本", "静か", "勉強", "貸出", "司書"],
+  "病院": ["医者", "看護師", "薬", "白衣", "ベッド"],
+  "公園": ["遊具", "ベンチ", "緑", "ピクニック", "犬"],
+  "駅": ["電車", "改札", "ホーム", "切符", "アナウンス"],
+  "ドラえもん": ["猫型", "青", "ポケット", "未来", "のび太"],
+  "アンパンマン": ["顔", "ジャム", "パン", "正義", "バイキンマン"],
+  "ミッキーマウス": ["ディズニー", "ネズミ", "耳", "丸", "黒"],
+  "スーパーマン": ["ヒーロー", "マント", "アメリカ", "空", "S"],
+  "クリスマス": ["12月", "サンタ", "ツリー", "雪", "プレゼント"],
+  "お正月": ["1月", "おせち", "初詣", "餅", "凧"],
+  "運動会": ["秋", "リレー", "弁当", "学校", "玉入れ"],
+  "七夕": ["短冊", "笹", "織姫", "7月", "天の川"],
+  "麦わら帽子": ["夏", "茶色", "農家", "日除け", "麦"],
+  "かき氷": ["夏", "シロップ", "氷", "祭り", "イチゴ"],
+  "蚊": ["かゆい", "夏", "刺す", "羽音", "プ〜ン"],
+  "扇風機": ["夏", "羽根", "風", "首振り", "プロペラ"]
+};
+
+let nextPlayerNum = 1;
+let PLAYERS = [];
+
+let demo = {
+  currentPlayer: null,
+  tableNum: null,
+  phase: 'table',
+  answererId: null,
+  candidates: [],
+  cardId: null,
+  item: null,
+  topic: null,
+  theme: null,
+  hints: {},
+  revealed: false,
+  attempts: [],
+  result: null
+};
+
+function renderTableGrid() {
+  const grid = document.getElementById('table-grid');
+  grid.innerHTML = '';
+  for (let i = 1; i <= 10; i++) {
+    const cell = document.createElement('div');
+    cell.className = 'table-cell' + (demo.tableNum === i ? ' selected' : '');
+    cell.textContent = i;
+    cell.onclick = () => selectTable(i);
+    grid.appendChild(cell);
+  }
+}
+
+function selectTable(n) {
+  demo.tableNum = n;
+  document.getElementById('btn-join').disabled = false;
+  renderTableGrid();
+}
+
+function joinTable() {
+  if (!demo.tableNum) return;
+  // 初期4人を作成
+  PLAYERS = [];
+  nextPlayerNum = 1;
+  for (let i = 0; i < 4; i++) {
+    PLAYERS.push({ id: 'p' + nextPlayerNum, name: 'プレイヤー' + nextPlayerNum });
+    nextPlayerNum++;
+  }
+  demo.currentPlayer = 'p1';
+  demo.phase = 'lobby';
+  document.getElementById('lobby-table-num').textContent = demo.tableNum;
+  render();
+}
+
+function renderPlayerTabs() {
+  const container = document.getElementById('player-tabs');
+  container.innerHTML = '';
+  if (PLAYERS.length === 0) {
+    container.innerHTML = '<div style="color:rgba(255,255,255,0.5); font-size:11px;">テーブル参加前です</div>';
+    return;
+  }
+  PLAYERS.forEach(p => {
+    const tab = document.createElement('button');
+    tab.className = 'player-tab' + (p.id === demo.currentPlayer ? ' active' : '');
+    let role = '';
+    if (demo.phase !== 'lobby' && demo.phase !== 'volunteer' && demo.phase !== 'table' && p.id === demo.answererId) role = '🎤';
+    else if (demo.phase !== 'lobby' && demo.phase !== 'volunteer' && demo.phase !== 'table') role = '✏️';
+    else if (demo.phase === 'volunteer' && demo.candidates.includes(p.id)) role = '🙋';
+    tab.innerHTML = `${p.name} <span class="role">${role}</span>`;
+    tab.onclick = () => switchPlayer(p.id);
+    container.appendChild(tab);
+  });
+}
+
+function switchPlayer(pid) {
+  demo.currentPlayer = pid;
+  render();
+}
+
+function addPlayer() {
+  if (demo.phase === 'table') {
+    alert('テーブルに参加してから人数調整できます');
+    return;
+  }
+  PLAYERS.push({ id: 'p' + nextPlayerNum, name: 'プレイヤー' + nextPlayerNum });
+  nextPlayerNum++;
+  render();
+}
+
+function removeLastPlayer() {
+  if (demo.phase === 'table') return;
+  if (PLAYERS.length <= 3) {
+    alert('3人未満にはできません');
+    return;
+  }
+  const removed = PLAYERS.pop();
+  if (demo.currentPlayer === removed.id) demo.currentPlayer = PLAYERS[0].id;
+  if (demo.answererId === removed.id) demo.answererId = null;
+  demo.candidates = demo.candidates.filter(id => id !== removed.id);
+  delete demo.hints[removed.id];
+  render();
+}
+
+function updatePhaseDisplay() {
+  const phaseMap = {
+    'table': '🏕 テーブル選択',
+    'lobby': '🏠 ロビー',
+    'volunteer': '🙋 立候補',
+    'picking': '🎯 お題選択',
+    'hinting': '✏️ ヒント入力',
+    'reviewing': '🔍 かぶりチェック',
+    'answering': '💭 回答中',
+    'result': '🎉 結果発表'
+  };
+  document.getElementById('phase-display').textContent = phaseMap[demo.phase] || demo.phase;
+  document.getElementById('current-table').textContent = demo.tableNum ? 'テーブル' + demo.tableNum : '未選択';
+  document.getElementById('player-count').textContent = PLAYERS.length;
+}
+
+function resetDemo() {
+  PLAYERS = [];
+  nextPlayerNum = 1;
+  demo = {
+    currentPlayer: null,
+    tableNum: null,
+    phase: 'table',
+    answererId: null,
+    candidates: [],
+    cardId: null,
+    item: null,
+    topic: null,
+    theme: null,
+    hints: {},
+    revealed: false,
+    attempts: [],
+    result: null
+  };
+  renderTableGrid();
+  document.getElementById('btn-join').disabled = true;
+  render();
+}
+
+const SCREENS = ['table', 'lobby', 'volunteer', 'pick', 'hint', 'answerer-wait', 'review', 'answer', 'watch', 'result'];
+
+function showScreen(name) {
+  SCREENS.forEach(s => {
+    document.getElementById('screen-' + s).classList.add('hidden');
+  });
+  document.getElementById('screen-' + name).classList.remove('hidden');
+}
+
+function render() {
+  renderPlayerTabs();
+  updatePhaseDisplay();
+
+  if (demo.phase === 'table') {
+    showScreen('table');
+    renderTableGrid();
+    return;
+  }
+
+  const isAnswerer = demo.currentPlayer === demo.answererId;
+
+  if (demo.phase === 'lobby') {
+    showScreen('lobby');
+    renderLobby();
+  } else if (demo.phase === 'volunteer') {
+    showScreen('volunteer');
+    renderVolunteerScreen();
+  } else if (demo.phase === 'picking') {
+    if (isAnswerer) {
+      showScreen('pick');
+      renderPickScreen();
+    } else {
+      showScreen('answerer-wait');
+      const aName = PLAYERS.find(p=>p.id===demo.answererId)?.name || '?';
+      document.getElementById('auto-wait-area').innerHTML = `
+        <strong>🎤 ${aName}さんがお題を選んでいます。</strong><br>
+        上のタブで切り替えて、回答者画面を確認してみてください。
+      `;
+    }
+  } else if (demo.phase === 'hinting') {
+    if (isAnswerer) {
+      showScreen('answerer-wait');
+      const nonAnswerers = PLAYERS.filter(p => p.id !== demo.answererId);
+      const submitted = nonAnswerers.filter(p => demo.hints[p.id]).length;
+      document.getElementById('auto-wait-area').innerHTML = `
+        <strong>📝 ${submitted} / ${nonAnswerers.length} 人が入力済み</strong><br>
+        他のメンバーがヒントを入力中。ヒント役のタブに切り替えると入力画面が見られます。
+      `;
+    } else {
+      showScreen('hint');
+      renderHintScreen();
+    }
+  } else if (demo.phase === 'reviewing') {
+    if (isAnswerer) {
+      showScreen('answerer-wait');
+      document.getElementById('auto-wait-area').innerHTML = `
+        <strong>🔍 ヒント役がかぶりチェック中。</strong><br>
+        他のメンバーのタブに切り替えて、かぶりチェック画面を確認してください。
+      `;
+    } else {
+      showScreen('review');
+      renderReviewScreen();
+    }
+  } else if (demo.phase === 'answering') {
+    if (isAnswerer) {
+      showScreen('answer');
+      renderAnswerScreen();
+    } else {
+      showScreen('watch');
+      renderWatchScreen();
+    }
+  } else if (demo.phase === 'result') {
+    showScreen('result');
+    renderResultScreen();
+  }
+}
+
+function renderLobby() {
+  const list = document.getElementById('lobby-players');
+  list.innerHTML = '';
+  PLAYERS.forEach((p, i) => {
+    const chip = document.createElement('div');
+    chip.className = 'player-chip' + (i === 0 ? ' host' : '') + (p.id === demo.currentPlayer ? ' you' : '');
+    chip.textContent = p.name + (p.id === demo.currentPlayer ? '（あなた）' : '');
+    list.appendChild(chip);
+  });
+}
+
+function startGame() {
+  if (PLAYERS.length < 3) {
+    alert('3人以上必要です');
+    return;
+  }
+  demo.phase = 'volunteer';
+  demo.candidates = [];
+  demo.answererId = null;
+  render();
+}
+
+function renderVolunteerScreen() {
+  const list = document.getElementById('candidates-list');
+  list.innerHTML = '';
+  if (demo.candidates.length === 0) {
+    list.innerHTML = '<div style="font-size:12px; color:var(--ink-soft); font-weight:700;">まだ誰も立候補していません</div>';
+  } else {
+    demo.candidates.forEach(pid => {
+      const p = PLAYERS.find(x => x.id === pid);
+      if (!p) return;
+      const chip = document.createElement('div');
+      chip.className = 'player-chip candidate';
+      chip.textContent = '🙋 ' + p.name + (p.id === demo.currentPlayer ? '（あなた）' : '');
+      list.appendChild(chip);
+    });
+  }
+
+  const btn = document.getElementById('btn-volunteer');
+  if (demo.candidates.includes(demo.currentPlayer)) {
+    btn.textContent = '↩ 立候補を取り消す';
+    btn.classList.add('cancel');
+  } else {
+    btn.textContent = '🎤 やる！';
+    btn.classList.remove('cancel');
+  }
+
+  document.getElementById('btn-confirm-answerer').disabled = demo.candidates.length === 0;
+
+  const others = PLAYERS.filter(p => p.id !== demo.currentPlayer && !demo.candidates.includes(p.id));
+  const autoArea = document.getElementById('auto-volunteer-area');
+  if (others.length > 0) {
+    autoArea.innerHTML = `
+      <strong>💡 デモ機能</strong><br>
+      他のメンバーを立候補させる<br>
+      <button class="auto-btn" onclick="autoVolunteer()">▶ 他のメンバーが立候補</button>
+    `;
+  } else {
+    autoArea.innerHTML = '';
+  }
+}
+
+function volunteer() {
+  if (demo.candidates.includes(demo.currentPlayer)) {
+    demo.candidates = demo.candidates.filter(id => id !== demo.currentPlayer);
+  } else {
+    demo.candidates.push(demo.currentPlayer);
+  }
+  render();
+}
+
+function autoVolunteer() {
+  const others = PLAYERS.filter(p => p.id !== demo.currentPlayer && !demo.candidates.includes(p.id));
+  const numToAdd = Math.min(others.length, Math.floor(Math.random() * 2) + 1);
+  for (let i = 0; i < numToAdd; i++) {
+    const randIdx = Math.floor(Math.random() * others.length);
+    demo.candidates.push(others[randIdx].id);
+    others.splice(randIdx, 1);
+  }
+  render();
+}
+
+function confirmAnswerer() {
+  if (demo.candidates.length === 0) return;
+  const idx = Math.floor(Math.random() * demo.candidates.length);
+  demo.answererId = demo.candidates[idx];
+  demo.phase = 'picking';
+  demo.candidates = [];
+  demo.hints = {};
+  demo.attempts = [];
+  render();
+}
+
+function renderPickScreen() {
+  const sel = document.getElementById('pick-card');
+  if (sel.options.length === 0) {
+    TOPICS.forEach(t => {
+      const opt = document.createElement('option');
+      opt.value = t.id;
+      opt.textContent = `${t.id}番 — ${t.theme}`;
+      sel.appendChild(opt);
+    });
+  }
+}
+
+function pickItem(letter) {
+  const cardId = parseInt(document.getElementById('pick-card').value);
+  const card = TOPICS.find(t => t.id === cardId);
+  if (!card) return;
+  demo.cardId = cardId;
+  demo.item = letter;
+  demo.topic = card.items[letter];
+  demo.theme = card.theme;
+  demo.phase = 'hinting';
+  demo.hints = {};
+  render();
+}
+
+function randomPick() {
+  const card = TOPICS[Math.floor(Math.random() * TOPICS.length)];
+  const letters = ['A', 'B', 'C', 'D'];
+  const letter = letters[Math.floor(Math.random() * 4)];
+  demo.cardId = card.id;
+  demo.item = letter;
+  demo.topic = card.items[letter];
+  demo.theme = card.theme;
+  demo.phase = 'hinting';
+  demo.hints = {};
+  render();
+}
+
+function renderHintScreen() {
+  document.getElementById('hint-theme').textContent = demo.theme;
+  document.getElementById('hint-topic').textContent = demo.topic;
+  document.getElementById('hint-answerer').textContent = PLAYERS.find(p => p.id === demo.answererId)?.name || '?';
+
+  const myHint = demo.hints[demo.currentPlayer];
+  const input = document.getElementById('hint-input');
+  const btn = document.getElementById('btn-submit-hint');
+  if (myHint) {
+    input.value = myHint.word;
+    input.disabled = true;
+    btn.disabled = true;
+    btn.textContent = '送信済み ✅';
+  } else {
+    input.value = '';
+    input.disabled = false;
+    btn.disabled = false;
+    btn.textContent = '送信 ✨';
+  }
+
+  const statusList = document.getElementById('hint-status');
+  statusList.innerHTML = '';
+  PLAYERS.filter(p => p.id !== demo.answererId).forEach(p => {
+    const submitted = demo.hints[p.id];
+    const item = document.createElement('div');
+    item.className = 'hint-item' + (submitted ? '' : ' waiting');
+    item.innerHTML = `
+      <span class="hint-name">${p.name}${p.id === demo.currentPlayer ? '（あなた）' : ''}</span>
+      <span class="hint-badge ${submitted ? '' : 'waiting'}">${submitted ? '入力済' : '入力中…'}</span>
+    `;
+    statusList.appendChild(item);
+  });
+
+  const otherPlayers = PLAYERS.filter(p => p.id !== demo.answererId && p.id !== demo.currentPlayer && !demo.hints[p.id]);
+  const autoArea = document.getElementById('auto-hint-area');
+  if (otherPlayers.length > 0) {
+    autoArea.innerHTML = `
+      <strong>💡 デモ機能</strong><br>
+      他のメンバーに自動でヒントを入力させる<br>
+      <button class="auto-btn" onclick="autoSubmitOthers()">▶ 他のメンバーが自動入力</button>
+    `;
+  } else {
+    autoArea.innerHTML = '';
+  }
+}
+
+function submitHint() {
+  const word = document.getElementById('hint-input').value.trim();
+  if (!word) {
+    alert('ヒントを入力してください');
+    return;
+  }
+  demo.hints[demo.currentPlayer] = { word, dup: false };
+  checkAllSubmitted();
+  render();
+}
+
+function autoSubmitOthers() {
+  const candidates = AI_HINTS[demo.topic] || ['ヒント1', 'ヒント2', 'ヒント3', 'ヒント4', 'ヒント5'];
+  const otherPlayers = PLAYERS.filter(p => p.id !== demo.answererId && !demo.hints[p.id] && p.id !== demo.currentPlayer);
+  const shuffled = [...candidates].sort(() => Math.random() - 0.5);
+  otherPlayers.forEach((p, i) => {
+    const word = shuffled[i % shuffled.length];
+    demo.hints[p.id] = { word, dup: false };
+  });
+  checkAllSubmitted();
+  render();
+}
+
+function checkAllSubmitted() {
+  const nonAnswerers = PLAYERS.filter(p => p.id !== demo.answererId);
+  const allSubmitted = nonAnswerers.every(p => demo.hints[p.id]);
+  if (allSubmitted) {
+    const normalize = s => s.toLowerCase().replace(/\s+/g, '');
+    const counts = {};
+    Object.values(demo.hints).forEach(h => {
+      const norm = normalize(h.word);
+      counts[norm] = (counts[norm] || 0) + 1;
+    });
+    Object.values(demo.hints).forEach(h => {
+      h.dup = counts[normalize(h.word)] > 1;
+    });
+    demo.phase = 'reviewing';
+  }
+}
+
+function renderReviewScreen() {
+  document.getElementById('review-topic').textContent = demo.topic;
+  const list = document.getElementById('review-hints');
+  list.innerHTML = '';
+  Object.entries(demo.hints).forEach(([pid, h]) => {
+    const player = PLAYERS.find(p => p.id === pid);
+    const item = document.createElement('div');
+    item.className = 'hint-item' + (h.dup ? ' duplicate' : '');
+    item.innerHTML = `
+      <span class="hint-word">${escapeHtml(h.word)}</span>
+      <span class="hint-name">${player ? player.name : '?'}${h.dup ? '・かぶり ❌' : ''}</span>
+    `;
+    list.appendChild(item);
+  });
+}
+
+function revealHints() {
+  demo.revealed = true;
+  demo.phase = 'answering';
+  render();
+}
+
+function renderAnswerScreen() {
+  const list = document.getElementById('answer-hints');
+  list.innerHTML = '';
+  Object.entries(demo.hints).forEach(([pid, h]) => {
+    if (h.dup) return;
+    const player = PLAYERS.find(p => p.id === pid);
+    const item = document.createElement('div');
+    item.className = 'hint-item';
+    item.innerHTML = `
+      <span class="hint-word">${escapeHtml(h.word)}</span>
+      <span class="hint-name">${player ? player.name : '?'}</span>
+    `;
+    list.appendChild(item);
+  });
+  document.getElementById('attempts-left').textContent = 3 - demo.attempts.length;
+}
+
+function submitAnswer() {
+  const ans = document.getElementById('answer-input').value.trim();
+  if (!ans) return;
+  const correct = normalizeAnswer(ans) === normalizeAnswer(demo.topic);
+  demo.attempts.push({ word: ans, correct });
+  if (correct) {
+    demo.phase = 'result';
+    demo.result = 'win';
+    confettiBurst();
+  } else if (demo.attempts.length >= 3) {
+    demo.phase = 'result';
+    demo.result = 'lose';
+  }
+  document.getElementById('answer-input').value = '';
+  render();
+}
+
+function giveUp() {
+  if (!confirm('降参しますか？')) return;
+  demo.phase = 'result';
+  demo.result = 'lose';
+  render();
+}
+
+function normalizeAnswer(s) {
+  if (!s) return '';
+  return s.toLowerCase()
+    .replace(/\s+/g, '')
+    .replace(/[ァ-ヶ]/g, c => String.fromCharCode(c.charCodeAt(0) - 0x60))
+    .replace(/[ー－]/g, '');
+}
+
+function renderWatchScreen() {
+  document.getElementById('watch-topic').textContent = demo.topic;
+  const list = document.getElementById('watch-hints');
+  list.innerHTML = '';
+  Object.entries(demo.hints).forEach(([pid, h]) => {
+    const player = PLAYERS.find(p => p.id === pid);
+    const item = document.createElement('div');
+    item.className = 'hint-item' + (h.dup ? ' duplicate' : '');
+    item.innerHTML = `
+      <span class="hint-word">${escapeHtml(h.word)}</span>
+      <span class="hint-name">${player ? player.name : '?'}${h.dup ? '・かぶり' : ''}</span>
+    `;
+    list.appendChild(item);
+  });
+
+  const attemptsList = document.getElementById('watch-attempts');
+  attemptsList.innerHTML = '';
+  demo.attempts.forEach((a, i) => {
+    const item = document.createElement('div');
+    item.className = 'hint-item';
+    item.innerHTML = `
+      <span class="hint-word">${i + 1}回目: ${escapeHtml(a.word)}</span>
+      <span class="hint-name">${a.correct ? '✅ 正解' : '❌ ハズレ'}</span>
+    `;
+    attemptsList.appendChild(item);
+  });
+  if (demo.attempts.length === 0) {
+    attemptsList.innerHTML = '<div class="hint-item waiting"><span>まだ回答していません</span></div>';
+  }
+}
+
+function renderResultScreen() {
+  const win = demo.result === 'win';
+  document.getElementById('result-emoji').textContent = win ? '🎉' : '😢';
+  const resultText = document.getElementById('result-text');
+  resultText.textContent = win ? '正解！' : '残念！';
+  resultText.className = 'result-text' + (win ? ' win' : '');
+  document.getElementById('result-topic').textContent = demo.topic;
+  const list = document.getElementById('result-history');
+  list.innerHTML = '';
+  demo.attempts.forEach((a, i) => {
+    const item = document.createElement('div');
+    item.className = 'hint-item';
+    item.innerHTML = `
+      <span class="hint-word">${i + 1}回目: ${escapeHtml(a.word)}</span>
+      <span class="hint-name">${a.correct ? '✅ 正解' : '❌ ハズレ'}</span>
+    `;
+    list.appendChild(item);
+  });
+  if (demo.attempts.length === 0) {
+    list.innerHTML = '<div class="hint-item waiting"><span>降参しました</span></div>';
+  }
+}
+
+function nextRound() {
+  demo.phase = 'volunteer';
+  demo.candidates = [];
+  demo.answererId = null;
+  demo.cardId = null;
+  demo.item = null;
+  demo.topic = null;
+  demo.theme = null;
+  demo.hints = {};
+  demo.revealed = false;
+  demo.attempts = [];
+  demo.result = null;
+  render();
+}
+
+function confettiBurst() {
+  const colors = ['#ff6b9d', '#ffd93d', '#4ecdc4', '#a78bfa', '#6bcb77', '#ff8c42'];
+  for (let i = 0; i < 50; i++) {
+    setTimeout(() => {
+      const confetti = document.createElement('div');
+      confetti.className = 'confetti';
+      confetti.style.left = Math.random() * 100 + 'vw';
+      confetti.style.background = colors[Math.floor(Math.random() * colors.length)];
+      confetti.style.animationDuration = (2 + Math.random() * 2) + 's';
+      confetti.style.borderRadius = Math.random() > 0.5 ? '50%' : '0';
+      document.body.appendChild(confetti);
+      setTimeout(() => confetti.remove(), 4000);
+    }, i * 30);
+  }
+}
+
+function escapeHtml(s) {
+  if (typeof s !== 'string') return '';
+  return s.replace(/[&<>"']/g, c => ({
+    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+  }[c]));
+}
+
+renderTableGrid();
+render();
+</script>
+
+</body>
+</html>
