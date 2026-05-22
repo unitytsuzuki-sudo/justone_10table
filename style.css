@@ -596,3 +596,81 @@ label {
   text-align: center;
   box-shadow: 0 3px 0 var(--ink);
 }
+
+/* フローティング切替ボタン */
+.floating-switcher {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  background: linear-gradient(135deg, #ff6b9d 0%, #ffd93d 100%);
+  border: 3px solid var(--ink);
+  border-radius: 999px;
+  padding: 12px 18px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  box-shadow: 0 6px 0 var(--ink);
+  z-index: 90;
+  font-family: inherit;
+  font-weight: 900;
+  transition: all 0.1s;
+  animation: floating-pulse 2s ease-in-out infinite;
+}
+
+.floating-switcher:active {
+  transform: translateY(6px);
+  box-shadow: 0 0 0 var(--ink);
+}
+
+.floating-switcher .fs-icon {
+  font-size: 24px;
+}
+
+.floating-switcher .fs-label {
+  font-size: 12px;
+  color: var(--ink);
+  max-width: 90px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+@keyframes floating-pulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.05); }
+}
+
+/* 切替モーダル内ボタン */
+.switcher-player-btn {
+  background: white;
+  border: 3px solid var(--ink);
+  border-radius: 14px;
+  padding: 14px 18px;
+  font-family: inherit;
+  font-size: 16px;
+  font-weight: 900;
+  cursor: pointer;
+  box-shadow: 0 4px 0 var(--ink);
+  text-align: left;
+  color: var(--ink);
+}
+
+.switcher-player-btn:active {
+  transform: translateY(4px);
+  box-shadow: 0 0 0 var(--ink);
+}
+
+.switcher-player-btn.active {
+  background: var(--primary);
+  color: white;
+}
+
+.switcher-player-btn .player-status {
+  font-size: 11px;
+  font-weight: 700;
+  margin-left: 8px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: rgba(0,0,0,0.1);
+}

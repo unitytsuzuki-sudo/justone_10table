@@ -297,6 +297,22 @@
 
   <div class="footer-note">— JUST ONE × BBQ ／ 2026 —</div>
 
+  <!-- フローティング切替ボタン -->
+  <div id="floating-switcher" class="floating-switcher hidden" onclick="openSwitcherModal()">
+    <div class="fs-icon">🎭</div>
+    <div class="fs-label" id="fs-current-name">あなた</div>
+  </div>
+
+  <!-- 切替モーダル -->
+  <div id="switcher-modal" class="modal hidden">
+    <div class="modal-content">
+      <div class="card-label">🎭 操作プレイヤー切替</div>
+      <div class="card-title">誰として操作しますか？</div>
+      <div id="switcher-modal-list" style="display:flex; flex-direction:column; gap:10px; margin: 14px 0;"></div>
+      <button class="btn btn-ghost" onclick="closeSwitcherModal()">閉じる</button>
+    </div>
+  </div>
+
 </div>
 
 <script src="topics.js"></script>

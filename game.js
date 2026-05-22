@@ -247,27 +247,79 @@ function renderLobby(tableData) {
 }
 
 function renderControlSwitcher(tableData) {
-  const areas = ['control-switcher', 'volunteer-switcher', 'hint-switcher', 'answer-switcher', 'watch-switcher', 'review-switcher'];
+  // 古い「各画面のカード」は非表示にする
   const cards = ['control-switcher-card', 'volunteer-switcher-card', 'hint-switcher-card', 'answer-switcher-card', 'watch-switcher-card', 'review-switcher-card'];
+  cards.forEach(id => {
+    const card = document.getElementById(id);
+    if (card) card.style.display = 'none';
+  });
+
+  // フローティングボタンの表示制御
+  const fab = document.getElementById('floating-switcher');
+  if (!fab) return;
 
   const controllable = getControllablePlayers(tableData);
-  const activeId = getActiveId();
-
-  let html = '';
-  if (controllable.length > 1) {
-    html = '<div class="card-label" style="margin-bottom:8px;">🎭 切替（あなたが操作中）</div><div class="players-list">';
-    controllable.forEach(p => {
-      const isActive = p.id === activeId;
-      html += `<button onclick="switchControl('${p.id}')" class="player-chip" style="cursor:pointer; ${isActive ? 'background:var(--primary); color:white;' : 'background:white;'} border:2.5px solid var(--ink); font-family:inherit;">${escapeHtml(p.name)}${isActive ? ' ✓' : ''}</button>`;
-    });
-    html += '</div><p class="hint-text" style="margin-top:8px;">1台で複数人プレイ時に切り替えて操作</p>';
+  if (controllable.length <= 1) {
+    fab.classList.add('hidden');
+    return;
   }
 
-  areas.forEach((id, i) => {
-    const area = document.getElementById(id);
-    const card = document.getElementById(cards[i]);
-    if (area) area.innerHTML = html;
-    if (card) card.style.display = (controllable.length > 1) ? 'block' : 'none';
+  fab.classList.remove('hidden');
+  const activeId = getActiveId();
+  const activePlayer = tableData.players.find(p => p.id === activeId);
+  const label = document.getElementById('fs-current-name');
+  if (label && activePlayer) {
+    label.textContent = activePlayer.name;
+  }
+
+  // モーダルが開いていれば中身も更新
+  const modal = document.getElementById('switcher-modal');
+  if (modal && !modal.classList.contains('hidden')) {
+    renderSwitcherModal(tableData);
+  }
+}
+
+let lastTableDataCache = null;
+
+function openSwitcherModal() {
+  if (!lastTableDataCache) return;
+  renderSwitcherModal(lastTableDataCache);
+  document.getElementById('switcher-modal').classList.remove('hidden');
+}
+
+function closeSwitcherModal() {
+  document.getElementById('switcher-modal').classList.add('hidden');
+}
+
+function renderSwitcherModal(tableData) {
+  const list = document.getElementById('switcher-modal-list');
+  if (!list) return;
+  const controllable = getControllablePlayers(tableData);
+  const activeId = getActiveId();
+  list.innerHTML = '';
+  controllable.forEach(p => {
+    const isActive = p.id === activeId;
+    const btn = document.createElement('button');
+    btn.className = 'switcher-player-btn' + (isActive ? ' active' : '');
+
+    // プレイヤーの現在の状態を表示
+    let status = '';
+    if (tableData.answererId === p.id) {
+      status = '🎤 回答者';
+    } else if (tableData.phase === 'hinting' && tableData.hints[p.id]) {
+      status = '✅ ヒント送信済';
+    } else if (tableData.phase === 'hinting') {
+      status = '✏️ ヒント未入力';
+    } else if ((tableData.candidates || []).includes(p.id)) {
+      status = '🙋 立候補中';
+    }
+
+    btn.innerHTML = `${escapeHtml(p.name)}${isActive ? ' ✓' : ''} ${status ? `<span class="player-status">${status}</span>` : ''}`;
+    btn.onclick = () => {
+      switchControl(p.id);
+      closeSwitcherModal();
+    };
+    list.appendChild(btn);
   });
 }
 
@@ -315,6 +367,9 @@ async function leaveTable() {
   stopPolling();
   state.tableNum = null;
   state.currentControlledId = null;
+  // フローティングボタンを隠す
+  const fab = document.getElementById('floating-switcher');
+  if (fab) fab.classList.add('hidden');
   showTableSelect();
 }
 
@@ -744,6 +799,7 @@ function stopPolling() {
 async function pollOnce() {
   try {
     const tableData = await readTable();
+    lastTableDataCache = tableData;
     routeByPhase(tableData);
   } catch (e) {
     console.error('Poll error:', e);
