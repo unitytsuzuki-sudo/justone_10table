@@ -322,6 +322,19 @@ label {
   box-shadow: none;
 }
 
+.hint-item.review-clickable {
+  transition: transform 0.1s;
+  user-select: none;
+}
+
+.hint-item.review-clickable:active {
+  transform: scale(0.96);
+}
+
+.hint-item.review-clickable:not(.duplicate):hover {
+  background: #ffe9f1;
+}
+
 .hint-name {
   font-size: 11px;
   color: var(--ink-soft);

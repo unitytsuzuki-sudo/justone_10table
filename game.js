@@ -673,6 +673,10 @@ function renderHintScreen(tableData) {
   const input = document.getElementById('hint-input');
   const btn = document.getElementById('btn-submit-hint');
 
+  // フォーカス保持
+  const wasFocused = document.activeElement === input;
+  const cursorPos = input ? input.selectionStart : null;
+
   // 入力欄をクリアするケース：
   // 1. プレイヤー切替直後
   // 2. このプレイヤーが既に送信済み
@@ -692,6 +696,14 @@ function renderHintScreen(tableData) {
     btn.textContent = '送信 ✨';
   }
   state.justSwitched = false;
+
+  // フォーカスを復元（入力中の場合）
+  if (wasFocused && !input.disabled) {
+    input.focus();
+    if (cursorPos !== null) {
+      try { input.setSelectionRange(cursorPos, cursorPos); } catch(e) {}
+    }
+  }
 
   const statusList = document.getElementById('hint-status');
   statusList.innerHTML = '';
@@ -768,13 +780,35 @@ function renderReviewScreen(tableData) {
   Object.entries(tableData.hints).forEach(([pid, h]) => {
     const player = tableData.players.find(p => p.id === pid);
     const item = document.createElement('div');
-    item.className = 'hint-item' + (h.dup ? ' duplicate' : '');
+    item.className = 'hint-item review-clickable' + (h.dup ? ' duplicate' : '');
+    item.style.cursor = 'pointer';
     item.innerHTML = `
       <span class="hint-word">${escapeHtml(h.word)}</span>
-      <span class="hint-name">${escapeHtml(player ? player.name : '?')}${h.dup ? '・かぶり ❌' : ''}</span>
+      <span class="hint-name">${escapeHtml(player ? player.name : '?')}${h.dup ? '・NG ❌' : ''}</span>
     `;
+    item.onclick = () => toggleHintDuplicate(pid);
     list.appendChild(item);
   });
+
+  // 説明文を追加
+  const note = document.getElementById('review-note');
+  if (note) {
+    note.innerHTML = '💡 各ヒントをタップすると NG ↔ OK を切替できます';
+  }
+}
+
+// 手動でヒントの「ダメ」を切替
+async function toggleHintDuplicate(pid) {
+  try {
+    await updateTable(t => {
+      if (t.hints && t.hints[pid]) {
+        t.hints[pid].dup = !t.hints[pid].dup;
+      }
+      return t;
+    });
+  } catch (e) {
+    alert('切替失敗: ' + e.message);
+  }
 }
 
 async function revealHints() {
@@ -792,6 +826,12 @@ async function revealHints() {
 // ---------- 回答 ----------
 function renderAnswerScreen(tableData) {
   const list = document.getElementById('answer-hints');
+  const ansInput = document.getElementById('answer-input');
+
+  // フォーカスを保持するため、現在の値とフォーカス状態を保存
+  const wasFocused = document.activeElement === ansInput;
+  const cursorPos = ansInput ? ansInput.selectionStart : null;
+
   list.innerHTML = '';
   Object.entries(tableData.hints).forEach(([pid, h]) => {
     if (h.dup) return;
@@ -805,10 +845,18 @@ function renderAnswerScreen(tableData) {
     list.appendChild(item);
   });
   document.getElementById('attempts-left').textContent = 3 - (tableData.attempts ? tableData.attempts.length : 0);
-  // 切替直後は入力欄クリア
-  if (state.justSwitched) {
-    const ansInput = document.getElementById('answer-input');
-    if (ansInput) ansInput.value = '';
+
+  // 切替直後は入力欄クリア、それ以外は何もしない（入力中の値を守る）
+  if (state.justSwitched && ansInput) {
+    ansInput.value = '';
+  }
+
+  // フォーカスを復元
+  if (wasFocused && ansInput) {
+    ansInput.focus();
+    if (cursorPos !== null) {
+      try { ansInput.setSelectionRange(cursorPos, cursorPos); } catch(e) {}
+    }
   }
 }
 
