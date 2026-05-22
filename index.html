@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>JUST ONE｜BBQ EDITION</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=M+PLUS+Rounded+1c:wght@500;700;800;900&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<div class="container">
+
+  <!-- ヘッダー -->
+  <div class="header">
+    <div class="logo">
+      <div class="logo-text">JUST ONE</div>
+      <span class="logo-burst left">⭐</span>
+      <span class="logo-burst right">💫</span>
+      <span class="logo-burst down">✨</span>
+    </div>
+    <div class="tagline">— BBQ EDITION —</div>
+  </div>
+
+  <!-- 画面: セットアップ -->
+  <div id="screen-setup" class="hidden">
+    <div class="card pink">
+      <div class="card-label">⚙️ 初回のみ</div>
+      <div class="card-title">GitHubトークンを入力</div>
+      <div class="info-box">
+        このアプリはGitHub Gistでデータを同期します。<br>
+        トークンとGist IDを設定してください（初回のみ）。
+      </div>
+      <div class="field">
+        <label>🔑 GitHub Personal Access Token</label>
+        <input type="text" id="setup-token" placeholder="ghp_xxxxxxxxxxxx" autocomplete="off">
+      </div>
+      <div class="field">
+        <label>📋 Gist ID</label>
+        <input type="text" id="setup-gist" placeholder="例: a1b2c3d4e5f6..." autocomplete="off">
+      </div>
+      <button class="btn btn-primary" onclick="saveSetup()">保存して始める 🚀</button>
+      <button class="btn btn-ghost" onclick="toggleHelp()" style="margin-top:8px;">設定方法を見る</button>
+    </div>
+
+    <div id="help-block" class="card yellow hidden">
+      <div class="card-title">📖 セットアップ手順</div>
+      <ol class="setup-list">
+        <li>GitHubにログイン</li>
+        <li><a href="https://github.com/settings/personal-access-tokens/new" target="_blank">トークン作成ページ</a>を開く</li>
+        <li>「Account permissions → Gists」を「Read and write」に設定</li>
+        <li>トークンを生成してコピー</li>
+        <li><a href="https://gist.github.com/" target="_blank">Gist作成ページ</a>を開く</li>
+        <li>filename: <code>data.json</code>、内容: <code>{}</code></li>
+        <li>「Create secret gist」を押す</li>
+        <li>URLからGist ID（末尾の英数字）をコピー</li>
+        <li>上のフォームに両方を入力</li>
+      </ol>
+    </div>
+  </div>
+
+  <!-- 画面: テーブル選択 -->
+  <div id="screen-table" class="hidden">
+    <div class="card pink">
+      <div class="card-label">🏕 STEP 1</div>
+      <div class="card-title">テーブルを選ぼう</div>
+      <p class="hint-text">同じ卓のメンバーは同じ番号を選んでください</p>
+      <div class="table-grid" id="table-grid"></div>
+    </div>
+
+    <button class="btn btn-primary" onclick="joinTable()" id="btn-join" disabled>このテーブルに入る 🚪</button>
+    <button class="btn btn-ghost" onclick="showQR()" style="margin-top:8px;">📱 QRコードで他の人を招待</button>
+    <button class="btn btn-ghost" onclick="resetSetup()" style="margin-top:4px;">⚙️ セットアップやり直し</button>
+  </div>
+
+  <!-- 画面: ロビー -->
+  <div id="screen-lobby" class="hidden">
+    <div class="card pink">
+      <div class="card-label">🏕 テーブル <span id="lobby-table-num"></span></div>
+      <div class="card-title">参加者あつまり中 🎉</div>
+      <div class="players-list" id="lobby-players"></div>
+      <p class="hint-text">3人以上集まったらゲームを開始できます</p>
+      <button class="btn btn-accent" onclick="addGhostPlayer()" style="margin-top:8px;">＋ プレイヤーを追加</button>
+    </div>
+
+    <div id="control-switcher-card" class="card lavender" style="display:none;">
+      <div id="control-switcher"></div>
+    </div>
+
+    <div class="card yellow">
+      <div class="card-title" style="font-size:15px;">🎯 あそびかた</div>
+      <ul class="rules-list">
+        <li>回答者になりたい人が「やる！」を押す</li>
+        <li>回答者がカード番号とA〜Dを指定</li>
+        <li>回答者以外にお題が表示される</li>
+        <li>全員がヒントを1単語で入力</li>
+        <li>かぶったヒントは無効化される</li>
+        <li>回答者は残ったヒントで3回まで答えられる</li>
+      </ul>
+    </div>
+
+    <button class="btn btn-primary" onclick="startGame()" id="btn-start">ゲーム開始 🚀</button>
+    <button class="btn btn-ghost" onclick="showQR()" style="margin-top:8px;">📱 QRで招待</button>
+    <button class="btn btn-ghost" onclick="leaveTable()" style="margin-top:4px;">退出</button>
+  </div>
+
+  <!-- 画面: 立候補 -->
+  <div id="screen-volunteer" class="hidden">
+    <div class="status-banner purple">🙋 回答者になりたい人？</div>
+    <div class="card lavender">
+      <div class="card-title">回答者を決めよう！</div>
+      <p class="hint-text">
+        やってみたい人は「やる！」を押してください。<br>
+        立候補が複数いたら、その中からランダムで決まります。
+      </p>
+
+      <div class="candidates-display">
+        <div class="label">🙋 立候補中</div>
+        <div class="players-list" id="candidates-list"></div>
+      </div>
+
+      <button class="candidate-btn" id="btn-volunteer" onclick="volunteer()">
+        🎤 やる！
+      </button>
+
+      <button class="btn btn-accent" onclick="confirmAnswerer()" id="btn-confirm-answerer" style="margin-top:12px;" disabled>
+        🎲 立候補者から決める
+      </button>
+    </div>
+
+    <div id="volunteer-switcher-card" class="card pink" style="display:none;">
+      <div id="volunteer-switcher"></div>
+    </div>
+  </div>
+
+  <!-- 画面: お題選択 -->
+  <div id="screen-pick" class="hidden">
+    <div class="status-banner danger">🎤 あなたが回答者です</div>
+    <div class="card pink">
+      <div class="card-title">カード番号を選ぶ</div>
+      <p class="hint-text">
+        お題の中身は見ずに、カード番号とA〜Dを選んでね
+      </p>
+      <div class="field">
+        <label>📇 カード番号</label>
+        <select id="pick-card"></select>
+      </div>
+      <div class="field">
+        <label>🎲 お題（A〜D）</label>
+        <div class="table-grid" style="grid-template-columns: repeat(4, 1fr);">
+          <div class="table-cell letter" onclick="pickItem('A')">A</div>
+          <div class="table-cell letter" onclick="pickItem('B')">B</div>
+          <div class="table-cell letter" onclick="pickItem('C')">C</div>
+          <div class="table-cell letter" onclick="pickItem('D')">D</div>
+        </div>
+      </div>
+      <button class="btn btn-accent" onclick="randomPick()">🎰 ランダムで選ぶ</button>
+    </div>
+  </div>
+
+  <!-- 画面: ヒント入力 -->
+  <div id="screen-hint" class="hidden">
+    <div class="status-banner">✏️ ヒントを書いてください</div>
+    <div class="card yellow">
+      <div class="card-label">📝 お題</div>
+      <div class="topic-display">
+        <div class="topic-theme" id="hint-theme"></div>
+        <div class="topic-word" id="hint-topic"></div>
+      </div>
+      <p class="hint-text">
+        回答者「<span id="hint-answerer"></span>」さんが当てられるよう、ヒントを1単語で。<br>
+        ※お題そのもの・英訳・しりとり・一部含む単語はNG
+      </p>
+      <div class="field">
+        <input type="text" id="hint-input" placeholder="ヒント（1単語）" maxlength="20" autocomplete="off">
+      </div>
+      <button class="btn btn-primary" onclick="submitHint()" id="btn-submit-hint">送信 ✨</button>
+    </div>
+    <div class="card mint">
+      <div class="card-label">⏳ 入力状況</div>
+      <div class="hints-list" id="hint-status"></div>
+    </div>
+    <div id="hint-switcher-card" class="card pink" style="display:none;">
+      <div id="hint-switcher"></div>
+    </div>
+  </div>
+  <div id="screen-answerer-wait" class="hidden">
+    <div class="status-banner warning">⏳ みんなが入力中<span class="typing-dots"><span>.</span><span>.</span><span>.</span></span></div>
+    <div class="card lavender">
+      <div class="card-title">のんびり待ってね ☕</div>
+      <p class="hint-text">
+        他のメンバーがヒントを書いて、かぶりチェックが終わったら、ヒントが表示されるよ
+      </p>
+      <div id="wait-progress" style="margin-top:12px;"></div>
+    </div>
+  </div>
+
+  <!-- 画面: かぶりチェック -->
+  <div id="screen-review" class="hidden">
+    <div class="status-banner warning">🔍 かぶりチェック</div>
+    <div class="card mint">
+      <div class="card-label">📝 お題</div>
+      <div class="topic-display">
+        <div class="topic-word" id="review-topic"></div>
+      </div>
+      <p class="hint-text">
+        全員のヒントが揃いました！かぶったヒントは取り消し線が引かれます
+      </p>
+      <div class="hints-list" id="review-hints"></div>
+      <button class="btn btn-secondary" onclick="revealHints()" style="margin-top:14px;">回答者に見せる 👀</button>
+    </div>
+    <div id="review-switcher-card" class="card pink" style="display:none;">
+      <div id="review-switcher"></div>
+    </div>
+  </div>
+
+  <!-- 画面: 回答 -->
+  <div id="screen-answer" class="hidden">
+    <div class="status-banner purple">💡 ヒントを見て答えてね</div>
+    <div class="card pink">
+      <div class="card-label">💬 ヒント一覧</div>
+      <div class="hints-list" id="answer-hints"></div>
+    </div>
+    <div class="card yellow">
+      <div class="card-title">あなたの答え（残り <span id="attempts-left">3</span> 回）</div>
+      <div class="field">
+        <input type="text" id="answer-input" placeholder="お題を答える" autocomplete="off">
+      </div>
+      <div class="btn-row">
+        <button class="btn btn-primary" onclick="submitAnswer()">回答 ✊</button>
+        <button class="btn btn-secondary" onclick="giveUp()">降参 🏳️</button>
+      </div>
+    </div>
+    <div id="answer-switcher-card" class="card pink" style="display:none;">
+      <div id="answer-switcher"></div>
+    </div>
+  </div>
+
+  <!-- 画面: 観戦 -->
+  <div id="screen-watch" class="hidden">
+    <div class="status-banner warning">🤔 回答者が考え中<span class="typing-dots"><span>.</span><span>.</span><span>.</span></span></div>
+    <div class="card mint">
+      <div class="card-label">👀 お題（みんなだけが知ってる）</div>
+      <div class="topic-display">
+        <div class="topic-word" id="watch-topic"></div>
+      </div>
+    </div>
+    <div class="card lavender">
+      <div class="card-label">💬 公開ヒント</div>
+      <div class="hints-list" id="watch-hints"></div>
+    </div>
+    <div class="card pink">
+      <div class="card-label">🎯 回答状況</div>
+      <div class="hints-list" id="watch-attempts"></div>
+    </div>
+    <div id="watch-switcher-card" class="card pink" style="display:none;">
+      <div id="watch-switcher"></div>
+    </div>
+  </div>
+
+  <!-- 画面: 結果 -->
+  <div id="screen-result" class="hidden">
+    <div class="card yellow">
+      <div class="result-big">
+        <div class="result-emoji" id="result-emoji">🎉</div>
+        <div class="result-text" id="result-text">正解！</div>
+        <div class="result-answer">お題は <strong id="result-topic"></strong> でした</div>
+      </div>
+    </div>
+    <div class="card mint">
+      <div class="card-label">📜 回答履歴</div>
+      <div class="hints-list" id="result-history"></div>
+    </div>
+    <button class="btn btn-primary" onclick="nextRound()">次のゲームへ 🚀</button>
+    <button class="btn btn-ghost" onclick="leaveTable()" style="margin-top:8px;">テーブルを抜ける</button>
+  </div>
+
+  <!-- QRモーダル -->
+  <div id="qr-modal" class="modal hidden">
+    <div class="modal-content">
+      <div class="card-label" id="qr-mode-label">📱 招待用QR</div>
+      <div class="card-title">同じテーブルに招待</div>
+      <div class="qr-display">
+        <img id="qr-img" src="" alt="QR">
+        <div class="qr-url" id="qr-url"></div>
+      </div>
+      <p class="hint-text" id="qr-mode-desc">
+        ※相手にもセットアップ（トークン入力）が必要です。
+      </p>
+      <button class="btn btn-accent" onclick="toggleQRMode()" id="qr-toggle-btn">🎫 招待URLに切替（推奨）</button>
+      <button class="btn btn-primary" onclick="copyShareLink()" style="margin-top:8px;">🔗 URLをコピー</button>
+      <button class="btn btn-ghost" onclick="closeQR()" style="margin-top:8px;">閉じる</button>
+    </div>
+  </div>
+
+  <div class="footer-note">— JUST ONE × BBQ ／ 2026 —</div>
+
+</div>
+
+<script src="topics.js"></script>
+<script src="game.js"></script>
+
+</body>
+</html>
