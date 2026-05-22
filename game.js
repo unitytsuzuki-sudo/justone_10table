@@ -1094,10 +1094,12 @@ async function nextRound() {
 
 // ゲームリセット（プレイヤーは残す、ロビーに戻す）
 async function resetGame() {
-  if (!confirm('このテーブルのゲームをリセットしますか？\n\n・プレイヤーは残ります\n・お題・ヒント・回答は全部消えます\n・ロビーに戻ります')) return;
+  if (!confirm('このテーブルをリセットしますか？\n\n・プレイヤー全員が退室になります\n・お題・ヒント・回答は全部消えます\n・全員がテーブル選択画面に戻ります')) return;
   try {
     await updateTable(t => {
+      // 完全リセット：プレイヤーも含めて全クリア
       t.phase = 'lobby';
+      t.players = [];
       t.candidates = [];
       t.readyToConfirm = [];
       t.answererId = null;
@@ -1113,11 +1115,23 @@ async function resetGame() {
     });
     state.pickInitialized = false;
     state.lastHintInputOwner = null;
+    state.localVolunteerState = {};
+    state.localReadyState = {};
+    state.currentControlledId = null;
     // 入力欄もクリア
     const hintInput = document.getElementById('hint-input');
     if (hintInput) hintInput.value = '';
     const ansInput = document.getElementById('answer-input');
     if (ansInput) ansInput.value = '';
+    // 自分もテーブル選択画面に戻る
+    stopPolling();
+    state.tableNum = null;
+    // フローティングボタンを隠す
+    const fab = document.getElementById('floating-switcher');
+    if (fab) fab.classList.add('hidden');
+    const resetBtn = document.getElementById('floating-reset');
+    if (resetBtn) resetBtn.classList.add('hidden');
+    showTableSelect();
   } catch (e) {
     alert('リセット失敗: ' + e.message);
   }
@@ -1230,6 +1244,25 @@ function routeByPhase(t) {
 
   // フェーズに応じてポーリング間隔を調整（回答中・入力中は停止）
   adjustPollingInterval(t.phase, isAnswerer, t);
+
+  // 自分がテーブルから消えていた場合（誰かがリセットした）はテーブル選択画面に戻る
+  const players = t.players || [];
+  const stillInTable = players.find(p => p.id === state.playerId);
+  if (state.tableNum && !stillInTable) {
+    stopPolling();
+    state.tableNum = null;
+    state.currentControlledId = null;
+    state.localVolunteerState = {};
+    state.localReadyState = {};
+    state.lastPhase = null;
+    const fab = document.getElementById('floating-switcher');
+    if (fab) fab.classList.add('hidden');
+    const resetBtn = document.getElementById('floating-reset');
+    if (resetBtn) resetBtn.classList.add('hidden');
+    alert('テーブルがリセットされました');
+    showTableSelect();
+    return;
+  }
 
   // 立候補フェーズから離れたらローカル状態クリア
   if (t.phase !== 'volunteer') {
