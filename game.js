@@ -472,207 +472,81 @@ function getControllablePlayers(t) {
   );
 }
 
-// ---------- 立候補画面 ----------
+// ---------- 回答者決め画面（ホスト方式） ----------
 function renderVolunteerScreen(tableData) {
-  const list = document.getElementById('candidates-list');
-  const candidates = tableData.candidates || [];
-  const readyList = tableData.readyToConfirm || [];
   const myActiveId = getActiveId();
-
-  // 自分のローカルステート（最後に押したボタンの状態）を優先
-  // これにより、Gist同期遅延でボタンが勝手に戻る現象を防ぐ
-  if (!state.localVolunteerState) state.localVolunteerState = {};
-  if (!state.localReadyState) state.localReadyState = {};
-
-  // Gistの状態とローカルが矛盾していたらローカルを採用
-  const myIsCandidate = state.localVolunteerState[myActiveId] !== undefined
-    ? state.localVolunteerState[myActiveId]
-    : candidates.includes(myActiveId);
-  const myIsReady = state.localReadyState[myActiveId] !== undefined
-    ? state.localReadyState[myActiveId]
-    : readyList.includes(myActiveId);
-
-  // 立候補チップは常に最新表示（他の人の状況を見るのは重要）
-  list.innerHTML = '';
-  if (candidates.length === 0) {
-    list.innerHTML = '<div style="font-size:12px; color:var(--ink-soft); font-weight:700;">まだ誰も立候補していません</div>';
-  } else {
-    candidates.forEach(pid => {
-      const p = tableData.players.find(x => x.id === pid);
-      if (!p) return;
-      const chip = document.createElement('div');
-      chip.className = 'player-chip candidate';
-      chip.textContent = '🙋 ' + p.name + (p.id === myActiveId ? '（あなた）' : '');
-      list.appendChild(chip);
-    });
-  }
-
-  // 「やる！」ボタンは自分のローカル状態を優先
-  const btnVol = document.getElementById('btn-volunteer');
-  if (myIsCandidate) {
-    btnVol.textContent = '↩ 立候補を取り消す';
-    btnVol.classList.add('cancel');
-  } else {
-    btnVol.textContent = '🎤 やる！';
-    btnVol.classList.remove('cancel');
-  }
-
-  // 「準備完了」ボタンも自分のローカル状態を優先
-  const btnReady = document.getElementById('btn-confirm-answerer');
-  if (myIsReady) {
-    btnReady.disabled = false;
-    btnReady.textContent = '✅ 準備完了！（取り消す）';
-  } else if (candidates.length === 0) {
-    btnReady.disabled = false;
-    btnReady.textContent = '🎲 やる人いない→誰かに任せる';
-  } else {
-    btnReady.disabled = false;
-    btnReady.textContent = '🎲 準備完了';
-  }
-
-  // 「準備完了状況」は最新表示
-  renderReadyStatus(tableData);
-}
-
-function renderReadyStatus(tableData) {
-  const area = document.getElementById('ready-status-area');
-  if (!area) return;
   const players = tableData.players || [];
-  const readyList = tableData.readyToConfirm || [];
-  const candidates = tableData.candidates || [];
 
-  let html = '<div class="card-label" style="margin-bottom:8px;">📊 準備完了状況</div>';
-  html += `<div style="font-size:13px; font-weight:800; margin-bottom:8px;">${readyList.length} / ${players.length} 人が準備完了</div>`;
-  html += '<div class="players-list">';
-  players.forEach(p => {
-    const ready = readyList.includes(p.id);
-    const vol = candidates.includes(p.id);
-    let bg = ready ? 'var(--green)' : 'white';
-    let color = ready ? 'white' : 'var(--ink)';
-    let icon = ready ? '✅' : '⏳';
-    html += `<div class="player-chip" style="background:${bg}; color:${color}; border:2.5px solid var(--ink);">${icon} ${escapeHtml(p.name)}${vol ? ' 🙋' : ''}</div>`;
-  });
-  html += '</div>';
-  area.innerHTML = html;
+  // ホスト（最初に入った人 = プレイヤー1）かどうか判定
+  const sortedByJoined = [...players].sort((a, b) => (a.joinedAt || 0) - (b.joinedAt || 0));
+  const hostId = sortedByJoined.length > 0 ? sortedByJoined[0].id : null;
+  // 自分（または自分が操作中のゴースト）がホストかどうか
+  const myControllable = getControllablePlayers(tableData);
+  const isHost = myControllable.some(p => p.id === hostId);
+  // ホストとして操作する画面：自分が操作中のプレイヤーがホストの場合
+  const meIsHost = myActiveId === hostId;
+
+  const hostArea = document.getElementById('host-decide-area');
+  const nonHostArea = document.getElementById('non-host-wait-area');
+
+  if (meIsHost) {
+    // ホスト用画面を表示
+    if (hostArea) hostArea.style.display = 'block';
+    if (nonHostArea) nonHostArea.style.display = 'none';
+
+    // プレイヤーリストを描画（ホスト以外のメンバー）
+    const list = document.getElementById('host-player-list');
+    if (list) {
+      list.innerHTML = '';
+      players.forEach(p => {
+        const btn = document.createElement('button');
+        btn.className = 'btn btn-primary';
+        btn.style.cssText = 'background: white; color: var(--ink);';
+        btn.textContent = '🎤 ' + p.name + (p.id === hostId ? '（ホスト）' : '');
+        btn.onclick = () => decideAnswerer(p.id);
+        list.appendChild(btn);
+      });
+    }
+  } else {
+    // 非ホスト用画面を表示
+    if (hostArea) hostArea.style.display = 'none';
+    if (nonHostArea) nonHostArea.style.display = 'block';
+  }
 }
 
-async function volunteer() {
-  const activeId = getActiveId();
-
-  // 押した瞬間にローカル状態を更新（Gist書き込み完了を待たない）
-  if (!state.localVolunteerState) state.localVolunteerState = {};
-  if (!state.localReadyState) state.localReadyState = {};
-
-  // 現在の自分の状態を確認（ローカル優先、なければGistキャッシュから）
-  const currentlyCandidate = state.localVolunteerState[activeId] !== undefined
-    ? state.localVolunteerState[activeId]
-    : (lastTableDataCache?.candidates || []).includes(activeId);
-
-  // 反転
-  state.localVolunteerState[activeId] = !currentlyCandidate;
-  // 立候補状態が変わったら、自分の準備完了もリセット（仕様通り）
-  state.localReadyState[activeId] = false;
-
-  // 即座にボタン見た目を更新
-  if (lastTableDataCache) {
-    // 一時的にローカル状態を反映したデータで再描画
-    const tempData = JSON.parse(JSON.stringify(lastTableDataCache));
-    tempData.candidates = tempData.candidates || [];
-    if (state.localVolunteerState[activeId]) {
-      if (!tempData.candidates.includes(activeId)) tempData.candidates.push(activeId);
-    } else {
-      tempData.candidates = tempData.candidates.filter(id => id !== activeId);
-    }
-    tempData.readyToConfirm = [];
-    renderVolunteerScreen(tempData);
-  }
-
+// ホストが回答者を決定する
+async function decideAnswerer(target) {
   try {
     await updateTable(t => {
-      t.candidates = t.candidates || [];
-      t.readyToConfirm = t.readyToConfirm || [];
-      if (state.localVolunteerState[activeId]) {
-        if (!t.candidates.includes(activeId)) t.candidates.push(activeId);
+      const players = t.players || [];
+      if (players.length === 0) return null;
+
+      let chosenId;
+      if (target === 'random') {
+        const idx = Math.floor(Math.random() * players.length);
+        chosenId = players[idx].id;
       } else {
-        t.candidates = t.candidates.filter(id => id !== activeId);
+        chosenId = target;
       }
-      // 立候補の変更があったら、全員の「準備完了」をリセット（再確認させる）
+      t.answererId = chosenId;
+      t.phase = 'picking';
+      t.candidates = [];
       t.readyToConfirm = [];
+      t.hints = {};
+      t.attempts = [];
       return t;
     });
+    // 立候補画面から離れるのでローカル状態クリア
+    state.localVolunteerState = {};
+    state.localReadyState = {};
+    // 通常ポーリングに戻す
+    adjustPollingInterval('picking', false, null);
+    pollOnce();
   } catch (e) {
-    alert('立候補失敗: ' + e.message);
-    // 失敗したらローカルもロールバック
-    delete state.localVolunteerState[activeId];
+    alert('回答者決定失敗: ' + e.message);
   }
 }
 
-async function confirmAnswerer() {
-  const activeId = getActiveId();
-
-  // 押した瞬間にローカル状態を更新
-  if (!state.localReadyState) state.localReadyState = {};
-  const currentlyReady = state.localReadyState[activeId] !== undefined
-    ? state.localReadyState[activeId]
-    : (lastTableDataCache?.readyToConfirm || []).includes(activeId);
-  state.localReadyState[activeId] = !currentlyReady;
-
-  // 即座にボタン見た目を更新
-  if (lastTableDataCache) {
-    const tempData = JSON.parse(JSON.stringify(lastTableDataCache));
-    tempData.readyToConfirm = tempData.readyToConfirm || [];
-    if (state.localReadyState[activeId]) {
-      if (!tempData.readyToConfirm.includes(activeId)) tempData.readyToConfirm.push(activeId);
-    } else {
-      tempData.readyToConfirm = tempData.readyToConfirm.filter(id => id !== activeId);
-    }
-    renderVolunteerScreen(tempData);
-  }
-
-  try {
-    await updateTable(t => {
-      t.readyToConfirm = t.readyToConfirm || [];
-
-      if (state.localReadyState[activeId]) {
-        if (!t.readyToConfirm.includes(activeId)) t.readyToConfirm.push(activeId);
-      } else {
-        t.readyToConfirm = t.readyToConfirm.filter(id => id !== activeId);
-      }
-
-      // 全員が準備完了になったら自動抽選
-      const allReady = t.players.every(p => t.readyToConfirm.includes(p.id));
-      if (allReady) {
-        const candidates = t.candidates || [];
-        let pool;
-        if (candidates.length > 0) {
-          // 立候補者がいればその中からランダム
-          pool = candidates;
-        } else {
-          // 立候補者ゼロなら全員からランダム
-          pool = t.players.map(p => p.id);
-        }
-        const idx = Math.floor(Math.random() * pool.length);
-        t.answererId = pool[idx];
-        t.phase = 'picking';
-        t.candidates = [];
-        t.readyToConfirm = [];
-        t.hints = {};
-        t.attempts = [];
-        // 抽選成立したのでローカル状態クリア
-        state.localVolunteerState = {};
-        state.localReadyState = {};
-      }
-      return t;
-    });
-
-    // 書き込み完了後、もう一度最新データを取って全員揃っているか確認
-    // （他の端末と競合した場合の救済措置）
-    await checkAllReadyAndAdvance();
-  } catch (e) {
-    alert('準備完了失敗: ' + e.message);
-    delete state.localReadyState[activeId];
-  }
-}
 
 // ---------- お題選択 ----------
 function renderPickScreen() {
@@ -1055,23 +929,93 @@ function renderResultScreen(tableData) {
   const win = tableData.result === 'win';
   document.getElementById('result-emoji').textContent = win ? '🎉' : '😢';
   const resultText = document.getElementById('result-text');
-  resultText.textContent = win ? '正解！' : '残念！';
+  resultText.textContent = win ? '🎉 正解！ 🎉' : '残念！';
   resultText.className = 'result-text' + (win ? ' win' : '');
   document.getElementById('result-topic').textContent = tableData.topic;
+
+  // 結果カード自体に勝利エフェクト
+  const resultCard = document.getElementById('result-card');
+  if (resultCard) {
+    resultCard.className = 'card yellow' + (win ? ' winning-card' : '');
+  }
+
+  // 勝利時の盛り上げメッセージ
+  const celebration = document.getElementById('result-celebration');
+  if (celebration) {
+    if (win) {
+      const messages = [
+        '🌟 ナイス推理！🌟',
+        '🎊 ばっちり！🎊',
+        '👏 お見事！👏',
+        '✨ さすが！ ✨',
+        '🏆 完璧！🏆',
+        '🎯 ストライク！🎯'
+      ];
+      const msg = messages[Math.floor(Math.random() * messages.length)];
+      celebration.innerHTML = `<div class="celebration-msg">${msg}</div>`;
+    } else {
+      celebration.innerHTML = '';
+    }
+  }
 
   const list = document.getElementById('result-history');
   list.innerHTML = '';
   (tableData.attempts || []).forEach((a, i) => {
     const item = document.createElement('div');
     item.className = 'hint-item';
+    let label = a.correct ? '✅ 正解' : '❌ ハズレ';
+    if (a.forced) label = '✨ 救済正解！';
     item.innerHTML = `
       <span class="hint-word">${i + 1}回目: ${escapeHtml(a.word)}</span>
-      <span class="hint-name">${a.correct ? '✅ 正解' : '❌ ハズレ'}</span>
+      <span class="hint-name">${label}</span>
     `;
     list.appendChild(item);
   });
   if ((tableData.attempts || []).length === 0) {
     list.innerHTML = '<div class="hint-item waiting"><span>降参しました</span></div>';
+  }
+
+  // 強制正解ボタン（負け & 回答者でない場合のみ表示）
+  const forceBtn = document.getElementById('btn-force-correct-result');
+  if (forceBtn) {
+    const isAnswerer = tableData.answererId === getActiveId();
+    const hasAttempt = (tableData.attempts || []).length > 0;
+    if (!win && !isAnswerer && hasAttempt) {
+      forceBtn.style.display = 'block';
+    } else {
+      forceBtn.style.display = 'none';
+    }
+  }
+
+  // 勝利時は紙吹雪を盛大に追加
+  if (win && state.lastResultEmoji !== 'win') {
+    confettiBurst();
+    setTimeout(() => confettiBurst(), 500);
+    setTimeout(() => confettiBurst(), 1000);
+    state.lastResultEmoji = 'win';
+  } else if (!win) {
+    state.lastResultEmoji = 'lose';
+  }
+}
+
+// 結果画面から強制正解
+async function forceCorrectFromResult() {
+  if (!confirm('回答者の最新回答を「正解」として認めますか？\n\n惜しい回答だった場合の救済措置です。')) return;
+  try {
+    await updateTable(t => {
+      const attempts = t.attempts || [];
+      if (attempts.length === 0) {
+        alert('まだ回答がありません');
+        return null;
+      }
+      // 最新の回答を正解にして、ゲーム結果を「勝ち」にする
+      attempts[attempts.length - 1].correct = true;
+      attempts[attempts.length - 1].forced = true;
+      t.result = 'win';
+      return t;
+    });
+  } catch (e) {
+    alert('救済正解失敗: ' + e.message);
   }
 }
 
@@ -1093,6 +1037,7 @@ async function nextRound() {
       return t;
     });
     state.pickInitialized = false;
+    state.lastResultEmoji = null;
   } catch (e) {
     alert('次のゲーム開始に失敗: ' + e.message);
   }

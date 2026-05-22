@@ -107,35 +107,31 @@
     <button class="btn btn-ghost" onclick="leaveTable()" style="margin-top:4px;">退出</button>
   </div>
 
-  <!-- 画面: 立候補 -->
+  <!-- 画面: 回答者決め（ホスト用） -->
   <div id="screen-volunteer" class="hidden">
-    <div class="status-banner purple">🙋 回答者になりたい人？</div>
-    <div class="card lavender">
-      <div class="card-title">回答者を決めよう！</div>
+    <div class="status-banner purple">🎤 回答者を決めよう</div>
+
+    <!-- ホスト用画面 -->
+    <div id="host-decide-area" class="card lavender">
+      <div class="card-title">回答者を決めてください</div>
       <p class="hint-text">
-        やってみたい人は「やる！」を押してください。<br>
-        全員が「準備完了」を押したら回答者が決まります。<br>
-        ・立候補者がいる → その中からランダム抽選<br>
-        ・誰も立候補しない → 全員からランダム抽選
+        プレイヤー1（あなた）が回答者を選びます。<br>
+        おまかせならランダムで、指定なら任意の人を選択。
       </p>
-
-      <div class="candidates-display">
-        <div class="label">🙋 立候補中</div>
-        <div class="players-list" id="candidates-list"></div>
-      </div>
-
-      <button class="candidate-btn" id="btn-volunteer" onclick="volunteer()">
-        🎤 やる！
+      <button class="btn btn-accent" onclick="decideAnswerer('random')" style="margin-bottom:10px;">
+        🎲 おまかせ（ランダム）
       </button>
-
-      <button class="btn btn-accent" onclick="confirmAnswerer()" id="btn-confirm-answerer" style="margin-top:12px;">
-        🎲 準備完了
-      </button>
+      <div class="card-label" style="margin:14px 0 8px;">または指定する</div>
+      <div id="host-player-list" style="display:flex; flex-direction:column; gap:8px;"></div>
     </div>
 
-    <div class="card pink">
-      <div id="ready-status-area"></div>
-      <button class="btn btn-secondary" onclick="manualRefreshVolunteer()" id="btn-refresh-volunteer" style="margin-top:12px;">🔄 みんなの状況を更新</button>
+    <!-- 非ホスト用画面 -->
+    <div id="non-host-wait-area" class="card lavender" style="display:none;">
+      <div class="card-title">⏳ プレイヤー1が回答者を選んでいます</div>
+      <p class="hint-text">
+        少々お待ちください。プレイヤー1（ホスト）が回答者を決めると、自動的に次の画面に進みます。
+      </p>
+      <button class="btn btn-secondary" onclick="manualRefreshVolunteer()" id="btn-refresh-volunteer" style="margin-top:12px;">🔄 状況を更新</button>
     </div>
 
     <div id="volunteer-switcher-card" class="card pink" style="display:none;">
@@ -275,16 +271,20 @@
 
   <!-- 画面: 結果 -->
   <div id="screen-result" class="hidden">
-    <div class="card yellow">
+    <div class="card yellow" id="result-card">
       <div class="result-big">
         <div class="result-emoji" id="result-emoji">🎉</div>
         <div class="result-text" id="result-text">正解！</div>
         <div class="result-answer">お題は <strong id="result-topic"></strong> でした</div>
+        <div id="result-celebration" style="margin-top:14px;"></div>
       </div>
     </div>
     <div class="card mint">
       <div class="card-label">📜 回答履歴</div>
       <div class="hints-list" id="result-history"></div>
+      <button class="btn btn-accent" onclick="forceCorrectFromResult()" id="btn-force-correct-result" style="margin-top:12px; display:none;">
+        ✨ それ実は正解！（救済）
+      </button>
     </div>
     <button class="btn btn-primary" onclick="nextRound()">次のゲームへ 🚀</button>
     <button class="btn btn-ghost" onclick="leaveTable()" style="margin-top:8px;">テーブルを抜ける</button>
