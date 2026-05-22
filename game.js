@@ -34,14 +34,12 @@ function ensurePlayerId() {
 // ---------- Gist API ----------
 async function gistRead() {
   if (!state.token || !state.gistId) throw new Error('No token/gist');
-  // キャッシュ回避のためタイムスタンプ付与
+  // キャッシュ回避のためタイムスタンプ付与（URLパラメータのみ）
   const cacheBuster = `?_=${Date.now()}`;
   const res = await fetch(`https://api.github.com/gists/${state.gistId}${cacheBuster}`, {
     headers: {
       'Authorization': `Bearer ${state.token}`,
-      'Accept': 'application/vnd.github+json',
-      'Cache-Control': 'no-cache',
-      'If-None-Match': ''  // ETagキャッシュ無効化
+      'Accept': 'application/vnd.github+json'
     }
   });
   if (!res.ok) throw new Error('Gist read failed: ' + res.status);
@@ -195,6 +193,8 @@ async function joinTable() {
 
   try {
     const updated = await updateTable(t => {
+      // playersが配列でない場合の防御
+      if (!Array.isArray(t.players)) t.players = [];
       const existing = t.players.find(p => p.id === state.playerId);
       if (!existing) {
         t.players.push({
@@ -208,10 +208,14 @@ async function joinTable() {
       renumberPlayers(t);
       return t;
     });
-    state.playerName = updated.players.find(p => p.id === state.playerId).name;
+    if (updated && Array.isArray(updated.players)) {
+      const me = updated.players.find(p => p.id === state.playerId);
+      state.playerName = me ? me.name : 'プレイヤー';
+    }
     enterLobby();
   } catch (e) {
-    alert('テーブル接続に失敗しました: ' + e.message);
+    console.error('joinTable error:', e);
+    alert('テーブル接続に失敗しました: ' + (e.message || e));
   }
 }
 
