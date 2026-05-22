@@ -34,10 +34,14 @@ function ensurePlayerId() {
 // ---------- Gist API ----------
 async function gistRead() {
   if (!state.token || !state.gistId) throw new Error('No token/gist');
-  const res = await fetch(`https://api.github.com/gists/${state.gistId}`, {
+  // キャッシュ回避のためタイムスタンプ付与
+  const cacheBuster = `?_=${Date.now()}`;
+  const res = await fetch(`https://api.github.com/gists/${state.gistId}${cacheBuster}`, {
     headers: {
       'Authorization': `Bearer ${state.token}`,
-      'Accept': 'application/vnd.github+json'
+      'Accept': 'application/vnd.github+json',
+      'Cache-Control': 'no-cache',
+      'If-None-Match': ''  // ETagキャッシュ無効化
     }
   });
   if (!res.ok) throw new Error('Gist read failed: ' + res.status);
@@ -367,6 +371,7 @@ async function startGame() {
       if (t.players.length < 3) return null;
       t.phase = 'volunteer';
       t.candidates = [];
+      t.readyToConfirm = [];
       t.answererId = null;
       t.hints = {};
       t.attempts = [];
@@ -466,6 +471,7 @@ function renderVolunteerScreen(tableData) {
   const list = document.getElementById('candidates-list');
   list.innerHTML = '';
   const candidates = tableData.candidates || [];
+  const readyList = tableData.readyToConfirm || [];
 
   if (candidates.length === 0) {
     list.innerHTML = '<div style="font-size:12px; color:var(--ink-soft); font-weight:700;">まだ誰も立候補していません</div>';
@@ -480,16 +486,54 @@ function renderVolunteerScreen(tableData) {
     });
   }
 
-  const btn = document.getElementById('btn-volunteer');
+  const btnVol = document.getElementById('btn-volunteer');
   if (candidates.includes(getActiveId())) {
-    btn.textContent = '↩ 立候補を取り消す';
-    btn.classList.add('cancel');
+    btnVol.textContent = '↩ 立候補を取り消す';
+    btnVol.classList.add('cancel');
   } else {
-    btn.textContent = '🎤 やる！';
-    btn.classList.remove('cancel');
+    btnVol.textContent = '🎤 やる！';
+    btnVol.classList.remove('cancel');
   }
 
-  document.getElementById('btn-confirm-answerer').disabled = candidates.length === 0;
+  // 「準備完了」ボタンの状態
+  const btnReady = document.getElementById('btn-confirm-answerer');
+  const myActiveId = getActiveId();
+  const isReady = readyList.includes(myActiveId);
+  if (candidates.length === 0) {
+    btnReady.disabled = true;
+    btnReady.textContent = '🎲 立候補者が出るまで待機';
+  } else if (isReady) {
+    btnReady.disabled = false;
+    btnReady.textContent = '✅ 準備完了！（取り消す）';
+  } else {
+    btnReady.disabled = false;
+    btnReady.textContent = '🎲 準備完了';
+  }
+
+  // 「準備完了状況」を表示
+  renderReadyStatus(tableData);
+}
+
+function renderReadyStatus(tableData) {
+  const area = document.getElementById('ready-status-area');
+  if (!area) return;
+  const players = tableData.players || [];
+  const readyList = tableData.readyToConfirm || [];
+  const candidates = tableData.candidates || [];
+
+  let html = '<div class="card-label" style="margin-bottom:8px;">📊 準備完了状況</div>';
+  html += `<div style="font-size:13px; font-weight:800; margin-bottom:8px;">${readyList.length} / ${players.length} 人が準備完了</div>`;
+  html += '<div class="players-list">';
+  players.forEach(p => {
+    const ready = readyList.includes(p.id);
+    const vol = candidates.includes(p.id);
+    let bg = ready ? 'var(--green)' : 'white';
+    let color = ready ? 'white' : 'var(--ink)';
+    let icon = ready ? '✅' : '⏳';
+    html += `<div class="player-chip" style="background:${bg}; color:${color}; border:2.5px solid var(--ink);">${icon} ${escapeHtml(p.name)}${vol ? ' 🙋' : ''}</div>`;
+  });
+  html += '</div>';
+  area.innerHTML = html;
 }
 
 async function volunteer() {
@@ -497,11 +541,14 @@ async function volunteer() {
   try {
     await updateTable(t => {
       t.candidates = t.candidates || [];
+      t.readyToConfirm = t.readyToConfirm || [];
       if (t.candidates.includes(activeId)) {
         t.candidates = t.candidates.filter(id => id !== activeId);
       } else {
         t.candidates.push(activeId);
       }
+      // 立候補の変更があったら、全員の「準備完了」をリセット（再確認させる）
+      t.readyToConfirm = [];
       return t;
     });
   } catch (e) {
@@ -510,20 +557,36 @@ async function volunteer() {
 }
 
 async function confirmAnswerer() {
+  const activeId = getActiveId();
   try {
     await updateTable(t => {
       const candidates = t.candidates || [];
       if (candidates.length === 0) return null;
-      const idx = Math.floor(Math.random() * candidates.length);
-      t.answererId = candidates[idx];
-      t.phase = 'picking';
-      t.candidates = [];
-      t.hints = {};
-      t.attempts = [];
+
+      t.readyToConfirm = t.readyToConfirm || [];
+
+      // 既に準備完了状態なら取り消し、そうでなければ追加
+      if (t.readyToConfirm.includes(activeId)) {
+        t.readyToConfirm = t.readyToConfirm.filter(id => id !== activeId);
+      } else {
+        t.readyToConfirm.push(activeId);
+      }
+
+      // 全員が準備完了になったら自動抽選
+      const allReady = t.players.every(p => t.readyToConfirm.includes(p.id));
+      if (allReady) {
+        const idx = Math.floor(Math.random() * candidates.length);
+        t.answererId = candidates[idx];
+        t.phase = 'picking';
+        t.candidates = [];
+        t.readyToConfirm = [];
+        t.hints = {};
+        t.attempts = [];
+      }
       return t;
     });
   } catch (e) {
-    alert('回答者決定失敗: ' + e.message);
+    alert('準備完了失敗: ' + e.message);
   }
 }
 
@@ -842,6 +905,7 @@ async function nextRound() {
     await updateTable(t => {
       t.phase = 'volunteer';
       t.candidates = [];
+      t.readyToConfirm = [];
       t.answererId = null;
       t.cardId = null;
       t.item = null;
@@ -866,6 +930,7 @@ async function resetGame() {
     await updateTable(t => {
       t.phase = 'lobby';
       t.candidates = [];
+      t.readyToConfirm = [];
       t.answererId = null;
       t.cardId = null;
       t.item = null;
@@ -904,9 +969,9 @@ function stopPolling() {
   }
 }
 
-// フェーズに応じてポーリング間隔を切替（ロビーは10秒、それ以外は3秒）
+// フェーズに応じてポーリング間隔を切替（ロビーは5秒、それ以外は2秒）
 function adjustPollingInterval(phase) {
-  const targetInterval = (phase === 'lobby') ? 10000 : 3000;
+  const targetInterval = (phase === 'lobby') ? 5000 : 2000;
   if (state.pollInterval !== targetInterval) {
     state.pollInterval = targetInterval;
     if (state.pollTimer) {
@@ -921,7 +986,8 @@ async function manualRefresh() {
   const btn = document.getElementById('btn-manual-refresh');
   if (btn) {
     btn.disabled = true;
-    btn.textContent = '🔄 更新中…';
+    // 同じ長さの文字列で幅変化を防ぐ
+    btn.textContent = '🔄 更新中.........';
   }
   try {
     await pollOnce();
@@ -931,7 +997,7 @@ async function manualRefresh() {
         btn.disabled = false;
         btn.textContent = '🔄 最新の状態に更新';
       }
-    }, 800);
+    }, 600);
   }
 }
 

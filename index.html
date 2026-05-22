@@ -114,7 +114,7 @@
       <div class="card-title">回答者を決めよう！</div>
       <p class="hint-text">
         やってみたい人は「やる！」を押してください。<br>
-        立候補が複数いたら、その中からランダムで決まります。
+        全員が「準備完了」を押したら、立候補者からランダムで決定します。
       </p>
 
       <div class="candidates-display">
@@ -127,8 +127,12 @@
       </button>
 
       <button class="btn btn-accent" onclick="confirmAnswerer()" id="btn-confirm-answerer" style="margin-top:12px;" disabled>
-        🎲 立候補者から決める
+        🎲 準備完了
       </button>
+    </div>
+
+    <div class="card pink">
+      <div id="ready-status-area"></div>
     </div>
 
     <div id="volunteer-switcher-card" class="card pink" style="display:none;">
