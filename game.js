@@ -1153,7 +1153,7 @@ function stopPolling() {
 }
 
 // フェーズに応じてポーリング間隔を切替・停止
-// 回答中／ヒント入力中はポーリング完全停止（入力を邪魔しない）
+// 回答中／ヒント入力中／立候補中はポーリング完全停止（操作を邪魔しない）
 function adjustPollingInterval(phase, isAnswerer, tableData) {
   // 回答画面（回答者）：ポーリング停止
   if (phase === 'answering' && isAnswerer) {
@@ -1162,6 +1162,11 @@ function adjustPollingInterval(phase, isAnswerer, tableData) {
   }
   // ヒント入力画面（送信前のヒント役）：ポーリング停止
   if (phase === 'hinting' && !isAnswerer && tableData && !tableData.hints[getActiveId()]) {
+    stopPolling();
+    return;
+  }
+  // 立候補画面：ポーリング停止（ボタン状態を守る）
+  if (phase === 'volunteer') {
     stopPolling();
     return;
   }
@@ -1225,6 +1230,83 @@ async function manualRefreshAnswer() {
     }
   } catch (e) {
     console.error('manualRefreshAnswer error:', e);
+  }
+}
+
+// 立候補画面でみんなの状況を手動更新（自分のボタン状態は変えない）
+async function manualRefreshVolunteer() {
+  const btn = document.getElementById('btn-refresh-volunteer');
+  if (btn) {
+    btn.disabled = true;
+    btn.textContent = '🔄 更新中.........';
+  }
+  try {
+    const tableData = await readTable();
+    lastTableDataCache = tableData;
+
+    // フェーズが変わってたら（誰か他の人の操作で次に進んだ）画面遷移
+    if (tableData.phase !== 'volunteer') {
+      adjustPollingInterval(tableData.phase, tableData.answererId === getActiveId(), tableData);
+      routeByPhase(tableData);
+      return;
+    }
+
+    // 立候補チップ・準備完了状況だけ更新（ボタン状態はローカル優先のロジックでそのまま守られる）
+    renderVolunteerScreen(tableData);
+
+    // 全員準備完了なら抽選判定をローカルでも確認
+    // ただし抽選書き込みは元のconfirmAnswerer内で全員揃ったタイミングで実行されているはず
+    // 念のため、ローカル状態 + Gist状態を合わせて、もし全員揃ってればもう一度同期トリガー
+    await checkAllReadyAndAdvance();
+  } catch (e) {
+    console.error('manualRefreshVolunteer error:', e);
+  } finally {
+    setTimeout(() => {
+      if (btn) {
+        btn.disabled = false;
+        btn.textContent = '🔄 みんなの状況を更新';
+      }
+    }, 600);
+  }
+}
+
+// 全員準備完了かを確認して、揃っていれば抽選を実行する
+async function checkAllReadyAndAdvance() {
+  try {
+    const tableData = await readTable();
+    if (tableData.phase !== 'volunteer') return;
+    const players = tableData.players || [];
+    const readyList = tableData.readyToConfirm || [];
+    if (players.length === 0) return;
+    const allReady = players.every(p => readyList.includes(p.id));
+    if (allReady) {
+      // 抽選実行
+      await updateTable(t => {
+        if (t.phase !== 'volunteer') return null;
+        const candidates = t.candidates || [];
+        let pool;
+        if (candidates.length > 0) {
+          pool = candidates;
+        } else {
+          pool = t.players.map(p => p.id);
+        }
+        const idx = Math.floor(Math.random() * pool.length);
+        t.answererId = pool[idx];
+        t.phase = 'picking';
+        t.candidates = [];
+        t.readyToConfirm = [];
+        t.hints = {};
+        t.attempts = [];
+        return t;
+      });
+      state.localVolunteerState = {};
+      state.localReadyState = {};
+      // 画面遷移のため再ポーリング
+      adjustPollingInterval('picking', false, null);
+      pollOnce();
+    }
+  } catch (e) {
+    console.error('checkAllReadyAndAdvance error:', e);
   }
 }
 
