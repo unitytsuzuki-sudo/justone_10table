@@ -415,6 +415,7 @@ async function leaveTable() {
   stopPolling();
   state.tableNum = null;
   state.currentControlledId = null;
+  state.hasConfirmedJoin = false;
   // フローティングボタンを隠す
   const fab = document.getElementById('floating-switcher');
   if (fab) fab.classList.add('hidden');
@@ -1126,6 +1127,7 @@ async function resetGame() {
     // 自分もテーブル選択画面に戻る
     stopPolling();
     state.tableNum = null;
+    state.hasConfirmedJoin = false;
     // フローティングボタンを隠す
     const fab = document.getElementById('floating-switcher');
     if (fab) fab.classList.add('hidden');
@@ -1328,15 +1330,17 @@ function routeByPhase(t) {
   adjustPollingInterval(t.phase, isAnswerer, t);
 
   // 自分がテーブルから消えていた場合（誰かがリセットした）はテーブル選択画面に戻る
+  // ただし、join直後の最初のポーリングでは判定しない（Gistキャッシュで古いデータが返ることがあるため）
   const players = t.players || [];
   const stillInTable = players.find(p => p.id === state.playerId);
-  if (state.tableNum && !stillInTable) {
+  if (state.tableNum && !stillInTable && state.hasConfirmedJoin) {
     stopPolling();
     state.tableNum = null;
     state.currentControlledId = null;
     state.localVolunteerState = {};
     state.localReadyState = {};
     state.lastPhase = null;
+    state.hasConfirmedJoin = false;
     const fab = document.getElementById('floating-switcher');
     if (fab) fab.classList.add('hidden');
     const resetBtn = document.getElementById('floating-reset');
@@ -1344,6 +1348,10 @@ function routeByPhase(t) {
     alert('テーブルがリセットされました');
     showTableSelect();
     return;
+  }
+  // 自分がplayersに含まれているのを確認できたら、以降はリセット検知を有効化
+  if (stillInTable) {
+    state.hasConfirmedJoin = true;
   }
 
   // 立候補フェーズから離れたらローカル状態クリア
