@@ -42,7 +42,12 @@ async function gistRead() {
       'Accept': 'application/vnd.github+json'
     }
   });
-  if (!res.ok) throw new Error('Gist read failed: ' + res.status);
+  if (!res.ok) {
+    if (res.status === 403) {
+      throw new Error('レート制限です。1-2分待ってからもう一度試してください');
+    }
+    throw new Error('Gist read failed: ' + res.status);
+  }
   const data = await res.json();
   const file = data.files['data.json'] || data.files[Object.keys(data.files)[0]];
   try {
@@ -65,7 +70,12 @@ async function gistWrite(data) {
       files: { 'data.json': { content: JSON.stringify(data, null, 2) } }
     })
   });
-  if (!res.ok) throw new Error('Gist write failed: ' + res.status);
+  if (!res.ok) {
+    if (res.status === 403) {
+      throw new Error('レート制限です。1-2分待ってからもう一度試してください');
+    }
+    throw new Error('Gist write failed: ' + res.status);
+  }
   return await res.json();
 }
 
@@ -274,7 +284,7 @@ function renderLobby(tableData) {
 async function removePlayer(playerId, playerName) {
   if (!confirm(`${playerName} を削除しますか？`)) return;
   try {
-    await updateTable(t => {
+    const updated = await updateTable(t => {
       t.players = t.players.filter(p => p.id !== playerId);
       if (t.answererId === playerId) t.answererId = null;
       t.candidates = (t.candidates || []).filter(id => id !== playerId);
@@ -286,6 +296,14 @@ async function removePlayer(playerId, playerName) {
     // 自分が操作していたゴーストを削除した場合、自分のIDに戻す
     if (state.currentControlledId === playerId) {
       state.currentControlledId = null;
+    }
+    if (updated) {
+      lastTableDataCache = updated;
+      // 切替モーダルが開いていれば再描画
+      const modal = document.getElementById('switcher-modal');
+      if (modal && !modal.classList.contains('hidden')) {
+        renderSwitcherModal(updated);
+      }
     }
   } catch (e) {
     alert('削除失敗: ' + e.message);
@@ -300,22 +318,23 @@ function renderControlSwitcher(tableData) {
     if (card) card.style.display = 'none';
   });
 
-  // フローティングボタンの表示制御
+  // フローティングボタンはテーブルに入っている時は常に表示（プレイヤー追加・切替の入口）
   const fab = document.getElementById('floating-switcher');
   if (!fab) return;
 
-  const controllable = getControllablePlayers(tableData);
-  if (controllable.length <= 1) {
+  if (!state.tableNum) {
     fab.classList.add('hidden');
     return;
   }
 
   fab.classList.remove('hidden');
   const activeId = getActiveId();
-  const activePlayer = tableData.players.find(p => p.id === activeId);
+  const activePlayer = (tableData.players || []).find(p => p.id === activeId);
   const label = document.getElementById('fs-current-name');
   if (label && activePlayer) {
     label.textContent = activePlayer.name;
+  } else if (label) {
+    label.textContent = 'プレイヤー';
   }
 
   // モーダルが開いていれば中身も更新
@@ -340,13 +359,22 @@ function closeSwitcherModal() {
 function renderSwitcherModal(tableData) {
   const list = document.getElementById('switcher-modal-list');
   if (!list) return;
+  const allPlayers = tableData.players || [];
   const controllable = getControllablePlayers(tableData);
+  const controllableIds = controllable.map(p => p.id);
   const activeId = getActiveId();
   list.innerHTML = '';
-  controllable.forEach(p => {
+  allPlayers.forEach(p => {
     const isActive = p.id === activeId;
+    const isMine = controllableIds.includes(p.id);
+
+    // 行コンテナ（ボタン + ❌削除）
+    const row = document.createElement('div');
+    row.style.cssText = 'display:flex; gap:6px; align-items:center;';
+
     const btn = document.createElement('button');
     btn.className = 'switcher-player-btn' + (isActive ? ' active' : '');
+    btn.style.flex = '1';
 
     // プレイヤーの現在の状態を表示
     let status = '';
@@ -359,14 +387,43 @@ function renderSwitcherModal(tableData) {
     } else if ((tableData.candidates || []).includes(p.id)) {
       status = '🙋 立候補中';
     }
+    const mineMark = isMine ? '🎭' : '👤';
 
-    btn.innerHTML = `${escapeHtml(p.name)}${isActive ? ' ✓' : ''} ${status ? `<span class="player-status">${status}</span>` : ''}`;
-    btn.onclick = () => {
-      switchControl(p.id);
-      closeSwitcherModal();
-    };
-    list.appendChild(btn);
+    btn.innerHTML = `${mineMark} ${escapeHtml(p.name)}${isActive ? ' ✓' : ''} ${status ? `<span class="player-status">${status}</span>` : ''}`;
+    if (isMine) {
+      btn.onclick = () => {
+        switchControl(p.id);
+        closeSwitcherModal();
+      };
+    } else {
+      btn.style.opacity = '0.6';
+      btn.style.cursor = 'default';
+    }
+    row.appendChild(btn);
+
+    // 削除ボタン（自分以外なら）
+    if (p.id !== state.playerId) {
+      const removeBtn = document.createElement('button');
+      removeBtn.className = 'chip-remove-btn';
+      removeBtn.style.cssText = 'background:#ff5252; color:white; width:36px; height:36px; flex-shrink:0;';
+      removeBtn.textContent = '✕';
+      removeBtn.onclick = () => {
+        removePlayer(p.id, p.name);
+      };
+      row.appendChild(removeBtn);
+    }
+
+    list.appendChild(row);
   });
+}
+
+// モーダル経由でプレイヤー追加
+async function addGhostPlayerFromModal() {
+  await addGhostPlayer();
+  // モーダルを再描画
+  if (lastTableDataCache) {
+    renderSwitcherModal(lastTableDataCache);
+  }
 }
 
 async function startGame() {
@@ -428,7 +485,7 @@ async function leaveTable() {
 // ホストがプレイヤーを追加（自分が操作するゴーストプレイヤー）
 async function addGhostPlayer() {
   try {
-    await updateTable(t => {
+    const updated = await updateTable(t => {
       const ghostId = 'g_' + Math.random().toString(36).substring(2, 10);
       t.players.push({
         id: ghostId,
@@ -440,6 +497,9 @@ async function addGhostPlayer() {
       renumberPlayers(t);
       return t;
     });
+    if (updated) {
+      lastTableDataCache = updated;
+    }
   } catch (e) {
     alert('プレイヤー追加失敗: ' + e.message);
   }
@@ -1106,7 +1166,7 @@ function stopPolling() {
 }
 
 // フェーズに応じてポーリング間隔を切替・停止
-// 回答中／ヒント入力中／立候補中はポーリング完全停止（操作を邪魔しない）
+// 回答中／ヒント入力中／立候補中はポーリング完全停止（操作を邪魔しない + API節約）
 function adjustPollingInterval(phase, isAnswerer, tableData) {
   // 回答画面（回答者）：ポーリング停止
   if (phase === 'answering' && isAnswerer) {
@@ -1118,16 +1178,17 @@ function adjustPollingInterval(phase, isAnswerer, tableData) {
     stopPolling();
     return;
   }
-  // 立候補画面：通常ポーリングは止めるが、リセット検知だけ別の軽量ポーリングで実行
+  // 立候補画面：ポーリング停止（API節約）
+  // ホストが決めるまで他のメンバーは待機。手動更新で確認可能。
   if (phase === 'volunteer') {
     stopPolling();
-    startResetCheckPolling();
+    stopResetCheckPolling();
     return;
   }
 
   // 通常画面のポーリング
   stopResetCheckPolling();
-  const targetInterval = (phase === 'lobby') ? 5000 : 2000;
+  const targetInterval = (phase === 'lobby') ? 8000 : 4000;  // 緩めて節約
   if (state.pollInterval !== targetInterval || !state.pollTimer) {
     state.pollInterval = targetInterval;
     if (state.pollTimer) clearInterval(state.pollTimer);
