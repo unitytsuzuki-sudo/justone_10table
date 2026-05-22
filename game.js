@@ -233,17 +233,55 @@ function renderLobby(tableData) {
   const activeId = getActiveId();
   tableData.players.forEach((p, i) => {
     const chip = document.createElement('div');
-    let cls = 'player-chip';
+    let cls = 'player-chip-with-remove';
     if (i === 0) cls += ' host';
     if (p.id === activeId) cls += ' you';
     chip.className = cls;
-    chip.textContent = p.name + (p.id === activeId ? '（あなた）' : '');
+
+    const nameSpan = document.createElement('span');
+    nameSpan.textContent = p.name + (p.id === activeId ? '（あなた）' : '');
+    chip.appendChild(nameSpan);
+
+    // ❌ボタン（自分以外の場合）
+    if (p.id !== activeId) {
+      const removeBtn = document.createElement('button');
+      removeBtn.className = 'chip-remove-btn';
+      removeBtn.textContent = '✕';
+      removeBtn.onclick = (e) => {
+        e.stopPropagation();
+        removePlayer(p.id, p.name);
+      };
+      chip.appendChild(removeBtn);
+    }
+
     list.appendChild(chip);
   });
   document.getElementById('btn-start').disabled = tableData.players.length < 3;
 
   // 自分が操作可能なプレイヤー一覧（切替UI）
   renderControlSwitcher(tableData);
+}
+
+// プレイヤーを削除
+async function removePlayer(playerId, playerName) {
+  if (!confirm(`${playerName} を削除しますか？`)) return;
+  try {
+    await updateTable(t => {
+      t.players = t.players.filter(p => p.id !== playerId);
+      if (t.answererId === playerId) t.answererId = null;
+      t.candidates = (t.candidates || []).filter(id => id !== playerId);
+      delete t.hints[playerId];
+      // 番号振り直し
+      renumberPlayers(t);
+      return t;
+    });
+    // 自分が操作していたゴーストを削除した場合、自分のIDに戻す
+    if (state.currentControlledId === playerId) {
+      state.currentControlledId = null;
+    }
+  } catch (e) {
+    alert('削除失敗: ' + e.message);
+  }
 }
 
 function renderControlSwitcher(tableData) {
@@ -853,15 +891,47 @@ async function resetGame() {
 
 // ---------- ポーリング ----------
 function startPolling() {
-  if (state.pollTimer) clearInterval(state.pollTimer);
+  stopPolling();
   pollOnce();
-  state.pollTimer = setInterval(pollOnce, 3000);
+  state.pollInterval = 3000;  // デフォルト3秒
+  state.pollTimer = setInterval(pollOnce, state.pollInterval);
 }
 
 function stopPolling() {
   if (state.pollTimer) {
     clearInterval(state.pollTimer);
     state.pollTimer = null;
+  }
+}
+
+// フェーズに応じてポーリング間隔を切替（ロビーは10秒、それ以外は3秒）
+function adjustPollingInterval(phase) {
+  const targetInterval = (phase === 'lobby') ? 10000 : 3000;
+  if (state.pollInterval !== targetInterval) {
+    state.pollInterval = targetInterval;
+    if (state.pollTimer) {
+      clearInterval(state.pollTimer);
+      state.pollTimer = setInterval(pollOnce, targetInterval);
+    }
+  }
+}
+
+// 手動更新ボタンから呼ばれる
+async function manualRefresh() {
+  const btn = document.getElementById('btn-manual-refresh');
+  if (btn) {
+    btn.disabled = true;
+    btn.textContent = '🔄 更新中…';
+  }
+  try {
+    await pollOnce();
+  } finally {
+    setTimeout(() => {
+      if (btn) {
+        btn.disabled = false;
+        btn.textContent = '🔄 最新の状態に更新';
+      }
+    }, 800);
   }
 }
 
@@ -878,6 +948,9 @@ async function pollOnce() {
 function routeByPhase(t) {
   const isAnswerer = t.answererId === getActiveId();
   let target = 'lobby';
+
+  // フェーズに応じてポーリング間隔を調整
+  adjustPollingInterval(t.phase);
 
   // 全画面で切替UI更新
   renderControlSwitcher(t);
